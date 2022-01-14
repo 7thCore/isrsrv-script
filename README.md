@@ -117,9 +117,6 @@ This script creates a new non-sudo enabled user and installes the game in a fold
 
 You also have the option to not use SteamCMD and copy the files manually to the server.
 
-
-
-
 -------------------------
 
 # Installation
@@ -226,13 +223,13 @@ After the installation finishes log in to the newly created user and set `AutoSa
 
 The script takes full advantage of the -serverAddition argument of Interstellar Rift. This means you can start additional server from the same installation and the script will take care of all of them. To add additional server type the following command:
 
-`-add_server`
+`add_server`
 
 You will be promped to enter a server number. These can range from 1-99 (single digit numbers must have a 0 before them, for example 09). Once the server is enabled it will automaticly start as the first server. Server 01 is the default.
 
 To remove a server (this just turns off the service without deleting any data/saves) you can execute the following command:
 
-`-remove_server`
+`remove_server`
 
 You will be promped to enter a server number. These can range from 1-99 (single digit numbers must have a 0 before them, for example 09).
 
