@@ -1,0 +1,19 @@
+[Unit]
+Description=IsRSrv Custom Commands script
+
+[Service]
+Type=forking
+WorkingDirectory=/srv/isrsrv
+ExecStartPre=/usr/bin/isrsrv-script server_tmux_commands_install %i
+ExecStartPre=/usr/bin/touch /tmp/%u-commands-%i-tmux.log
+ExecStart=/usr/bin/tmux -f /tmp/%u-commands-%i-tmux.conf -L %u-commands-%i-tmux.sock new-session -d -s IsRSrv-Commands-%i /usr/bin/isrsrv-commands %i
+ExecStop=/usr/bin/tmux -L %u-commands-%i-tmux.sock kill-session -t IsrSrv
+ExecStop=/usr/bin/rm /tmp/%u-commands-%i-tmux.conf
+ExecStop=/usr/bin/rm /tmp/%u-commands-%i-tmux.log
+TimeoutStartSec=90
+TimeoutStopSec=90
+RestartSec=10
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
