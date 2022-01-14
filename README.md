@@ -168,6 +168,7 @@ Log in to your server with ssh and execute:
 Copy the two isrsrv scripts to /usr/bin
 
 `cp ./isrsrv-script.bash /usr/bin/isrsrv-script`
+
 `cp ./isrsrv-commands.bash /usr/bin/isrsrv-commands`
 
 
@@ -179,12 +180,14 @@ Create the isrsrv user
 Create the folder structure for the server:
 
 `mkdir -p /srv/isrsrv/{server,config,updates,backups,logs}`
+
 `mkdir -p /srv/isrsrv/.config/systemd/user`
 
 
 Copy all the .service and .timer files to the user directory
 
 `cp ./*.service /srv/isrsrv/.config/systemd/user/`
+
 `cp ./*.timer /srv/isrsrv/.config/systemd/user/`
 
 
@@ -201,12 +204,14 @@ Give file permissions to the user
 Start the user service and enable linger
 
 `loginctl enable-linger isrsrv`
+
 `systemctl start user@$(id -u isrsrv).service`
 
 
 Login to the user and start the script configuration
 
 `sudo -i -u isrsrv`
+
 `isrsrv-script install`
 
 -------------------------
@@ -216,6 +221,13 @@ Login to the user and start the script configuration
 Download the package for your system and install it. It will install all the needed dependancies for the script.
 
 After the installation finishes log in to the newly created user and set `AutoSaveDelay` and `BackupSaveDelay` in server_01.json to `0` to disable the integrated saves and backups. The script will take care of saving and backups. This is required if using the script so the game won't save mid script-backup or sync from RamDisk to hdd/ssd.
+
+
+Login to the user and start the script configuration
+
+`sudo -i -u isrsrv`
+
+`isrsrv-script install`
 
 -------------------------
 
