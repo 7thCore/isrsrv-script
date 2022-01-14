@@ -1,0 +1,6 @@
+[Unit]
+Description=IsrSrv Script Send Email notification Service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/isrsrv-script send_notification_crash %i
