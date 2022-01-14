@@ -1,0 +1,13 @@
+[Unit]
+Description=IsrSrv TmpFs sync
+After=mnt-tmpfs.mount
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStartPre=/usr/bin/mkdir -p /mnt/tmpfs/isrsrv/drive_c/Games/InterstellarRift/Build
+ExecStart=/usr/bin/rsync -aAXv --info=progress2 /srv/isrsrv/server/ /mnt/tmpfs/isrsrv
+ExecStop=/usr/bin/rsync -aAXv --info=progress2 /mnt/tmpfs/isrsrv/ /srv/isrsrv/server
+
+[Install]
+WantedBy=default.target
