@@ -61,7 +61,7 @@ source=('isrsrv-script.bash'
         'isrsrv-commands@.service'
         'bash_profile')
 noextract=('')
-sha256sums=('9bc4bece8d883956cf8464077e3e563234cbdda7154961a5c805bc6139704f00'
+sha256sums=('a09947273b6366bd448cfcaa3a223acc6f28dc84f5cef16045e120ab1aec9032'
             'e5375a87b5504b6aa8a1879c21753747b808f57abeb87a18cab43b2103e9b9cc'
             '41a46234e8e05f95c0962e4e8ba7ae73eb06b09c6775c7363b5777ab1258130f'
             '37f964cb659ba46efb0f762d31f1868110e006c8b5c79d995b83ce9dd8f64812'
