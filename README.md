@@ -1,8 +1,10 @@
-# isrsrv-script
+# IsRSrv Script
 Bash script for running Interstellar Rift on a linux server
 
 -------------------------
 
-[My Awesome Wiki](../../wikis)
+# Check the wiki for detailed instructions
+
+[IsRSrv Script Wiki](../../wikis)
 
 -------------------------
