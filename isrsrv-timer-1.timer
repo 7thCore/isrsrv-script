@@ -1,5 +1,5 @@
 [Unit]
-Description=IsrSrv Script Timer 1
+Description=IsRSrv Script Timer 1
 
 [Timer]
 OnCalendar=*-*-* 00:00:00

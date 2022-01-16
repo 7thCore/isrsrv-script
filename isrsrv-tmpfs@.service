@@ -11,16 +11,16 @@ OnFailure=isrsrv-send-notification@%i.service
 [Service]
 Type=forking
 KillMode=process
-WorkingDirectory=/mnt/tmpfs/isrsrv/drive_c/Games/InterstellarRift/Build/
+WorkingDirectory=/srv/isrsrv/tmpfs/drive_c/Games/InterstellarRift/Build/
 ExecStartPre=/usr/bin/isrsrv-script server_tmux_install %i
 ExecStartPre=/usr/bin/isrsrv-script send_notification_start_initialized %i
-ExecStartPre=/usr/bin/rsync -aAVx --info=progress /srv/isrsrv/server/drive_c/users/isrsrv/AppData/Roaming/InterstellarRift/{server_%i.json,server_%i,userdb_%i,workshop_%i} /mnt/tmpfs/isrsrv/drive_c/users/isrsrv/AppData/Roaming/InterstellarRift/
-ExecStart=/usr/bin/tmux -f /tmp/%u-%i-tmux.conf -L %u-%i-tmux.sock new-session -d -s IsRSrv 'env WINEARCH=win64 WINEDEBUG=warn+heap WINEPREFIX=/mnt/tmpfs/isrsrv wine /mnt/tmpfs/isrsrv/drive_c/Games/InterstellarRift/Build/IR.exe -server -serverAddition %i -inline -linux -nossl -noConsoleAutoComplete 2> /srv/isrsrv/logs/isrsrv-wine-%i.log'
+ExecStartPre=/usr/bin/rsync -aAVx --info=progress /srv/isrsrv/server/drive_c/users/isrsrv/AppData/Roaming/InterstellarRift/{server_%i.json,server_%i,userdb_%i,workshop_%i} /srv/isrsrv/tmpfs/drive_c/users/isrsrv/AppData/Roaming/InterstellarRift/
+ExecStart=/usr/bin/tmux -f /tmp/%u-%i-tmux.conf -L %u-%i-tmux.sock new-session -d -s IsRSrv 'env WINEARCH=win64 WINEDEBUG=warn+heap WINEPREFIX=/srv/isrsrv/tmpfs wine /srv/isrsrv/tmpfs/drive_c/Games/InterstellarRift/Build/IR.exe -server -serverAddition %i -inline -linux -nossl -noConsoleAutoComplete 2> /srv/isrsrv/logs/isrsrv-wine-%i.log'
 ExecStartPost=/usr/bin/isrsrv-script send_notification_start_complete %i
 ExecStop=/usr/bin/isrsrv-script send_notification_stop_initialized %i
 ExecStop=/usr/bin/tmux -L %u-%i-tmux.sock send-keys -t IsRSrv.0 'quittimer 15 Server shutting down in 15 seconds!' ENTER
 ExecStop=/usr/bin/sleep 20
-ExecStop=/usr/bin/rsync -aAVx --info=progress  /mnt/tmpfs/isrsrv/server/drive_c/users/isrsrv/AppData/Roaming/InterstellarRift/{server_%i.json,server_%i,userdb_%i,workshop_%i} /srv/isrsrv/server/drive_c/users/isrsrv/AppData/Roaming/InterstellarRift
+ExecStop=/usr/bin/rsync -aAVx --info=progress  /srv/isrsrv/tmpfs/drive_c/users/isrsrv/AppData/Roaming/InterstellarRift/{server_%i.json,server_%i,userdb_%i,workshop_%i} /srv/isrsrv/server/drive_c/users/isrsrv/AppData/Roaming/InterstellarRift
 ExecStopPost=/usr/bin/rm /tmp/%u-%i-tmux.log
 ExecStopPost=/usr/bin/rm /tmp/%u-%i-tmux.conf
 ExecStopPost=/usr/bin/isrsrv-script move_wine_log %i

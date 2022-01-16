@@ -6,14 +6,13 @@ VERSION="202201141818"
 
 #Basics
 NAME="IsRSrv" #Name of the tmux session
-USER="$(whoami)" #Get username of current user
 
 #Server configuration
 SERVICE_NAME="isrsrv" #Name of the service files, script and script log
-SRV_DIR="/srv/$USER/server" #Location of the server located on your hdd/ssd
+SRV_DIR="/srv/$SERVICE_NAME/server" #Location of the server located on your hdd/ssd
 SCRIPT_NAME="$SERVICE_NAME-script.bash" #Script name
-CONFIG_DIR="/srv/$USER/config" #Location of this script
-UPDATE_DIR="/srv/$USER/updates" #Location of update information for the script's automatic update feature
+CONFIG_DIR="/srv/$SERVICE_NAME/config" #Location of this script
+UPDATE_DIR="/srv/$SERVICE_NAME/updates" #Location of update information for the script's automatic update feature
 
 #Script configuration
 if [ -f "$CONFIG_DIR/$SERVICE_NAME-script.conf" ] ; then
@@ -82,31 +81,31 @@ APPID="363360"
 WINE_ARCH="win64" #Architecture of the wine prefix
 WINE_PREFIX_GAME_DIR="drive_c/Games/InterstellarRift" #Server executable directory
 WINE_PREFIX_GAME_EXE="Build/IR.exe -server -serverAddition %i -inline -linux -nossl -noConsoleAutoComplete" #Server executable
-WINE_PREFIX_GAME_CONFIG="drive_c/users/$USER/AppData/Roaming/InterstellarRift"
+WINE_PREFIX_GAME_CONFIG="drive_c/users/$SERVICE_NAME/AppData/Roaming/InterstellarRift"
 
 #Ramdisk configuration
-TMPFS_DIR="/mnt/tmpfs/$USER" #Locaton of your tmpfs partition.
+TMPFS_DIR="/srv/$SERVICE_NAME/tmpfs" #Locaton of your tmpfs partition.
 
 #TmpFs/hdd variables
 if [[ "$TMPFS_ENABLE" == "1" ]]; then
-	BCKP_SRC_DIR="$TMPFS_DIR/drive_c/users/$USER/AppData/Roaming/InterstellarRift" #Application data of the tmpfs
+	BCKP_SRC_DIR="$TMPFS_DIR/drive_c/users/$SERVICE_NAME/AppData/Roaming/InterstellarRift" #Application data of the tmpfs
 	SERVICE="$SERVICE_NAME-tmpfs" #TmpFs service file name
 else
-	BCKP_SRC_DIR="$SRV_DIR/drive_c/users/$USER/AppData/Roaming/InterstellarRift" #Application data of the hdd/ssd
+	BCKP_SRC_DIR="$SRV_DIR/drive_c/users/$SERVICE_NAME/AppData/Roaming/InterstellarRift" #Application data of the hdd/ssd
 	SERVICE="$SERVICE_NAME" #Hdd/ssd service file name
 fi
 
 #Backup configuration
 BCKP_SRC="*" #What files to backup, * for all
-BCKP_DIR="/srv/$USER/backups" #Location of stored backups
+BCKP_DIR="/srv/$SERVICE_NAME/backups" #Location of stored backups
 BCKP_DEST="$BCKP_DIR/$(date +"%Y")/$(date +"%m")/$(date +"%d")" #How backups are sorted, by default it's sorted in folders by month and day
 
 #Log configuration
-export LOG_DIR="/srv/$USER/logs/$(date +"%Y")/$(date +"%m")/$(date +"%d")"
-export LOG_DIR_ALL="/srv/$USER/logs"
+export LOG_DIR="/srv/$SERVICE_NAME/logs/$(date +"%Y")/$(date +"%m")/$(date +"%d")"
+export LOG_DIR_ALL="/srv/$SERVICE_NAME/logs"
 export LOG_SCRIPT="$LOG_DIR/$SERVICE_NAME-script.log" #Script log
-export LOG_TMP="/tmp/$USER-$SERVICE_NAME-tmux.log"
-export CRASH_DIR="/srv/$USER/logs/crashes/$(date +"%Y-%m-%d_%H-%M")"
+export LOG_TMP="/tmp/$SERVICE_NAME-$SERVICE_NAME-tmux.log"
+export CRASH_DIR="/srv/$SERVICE_NAME/logs/crashes/$(date +"%Y-%m-%d_%H-%M")"
 
 #Console collors
 RED='\033[0;31m'
@@ -470,7 +469,7 @@ script_send_notification_crash() {
 	rm $CRASH_DIR/service_log.txt
 	
 	if [[ "$EMAIL_CRASH" == "1" ]]; then
-		mail -a $CRASH_DIR/service_logs.zip -a $CRASH_DIR/script_logs.zip -a $CRASH_DIR/game_logs.zip -a $CRASH_DIR/wine_logs.zip -r "$EMAIL_SENDER ($NAME $USER)" -s "Notification: Crash" $EMAIL_RECIPIENT <<- EOF
+		mail -a $CRASH_DIR/service_logs.zip -a $CRASH_DIR/script_logs.zip -a $CRASH_DIR/game_logs.zip -a $CRASH_DIR/wine_logs.zip -r "$EMAIL_SENDER ($NAME $SERVICE_NAME)" -s "Notification: Crash" $EMAIL_RECIPIENT <<- EOF
 		The $NAME server $1 crashed 3 times in the last 5 minutes. Automatic restart is disabled and the server is inactive. Please check the logs for more information.
 		
 		Attachment contents:
@@ -492,7 +491,7 @@ script_send_notification_crash() {
 	fi
 	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Crash) Server crashed. Please review your logs located in $CRASH_DIR." | tee -a "$LOG_SCRIPT"
 	
-	touch /tmp/$(id -u $USER).crash
+	touch /tmp/$(id -u $SERVICE_NAME).crash
 }
 
 #---------------------------
@@ -517,7 +516,7 @@ script_save() {
 		export SERVER_NUMBER=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
 		if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]]; then
 			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Save) Save game to disk for server $SERVER_NUMBER has been initiated." | tee -a "$LOG_SCRIPT"
-			( sleep 5 && tmux -L $USER-$SERVER_NUMBER-tmux.sock send-keys -t $NAME.0 'save' ENTER ) &
+			( sleep 5 && tmux -L $SERVICE_NAME-$SERVER_NUMBER-tmux.sock send-keys -t $NAME.0 'save' ENTER ) &
 			timeout $TIMEOUT_SAVE /bin/bash -c '
 			while read line; do
 				if [[ "$line" == *"[Server]: Save completed."* ]] && [[ "$line" != *"[All]:"* ]]; then
@@ -529,7 +528,7 @@ script_save() {
 				else
 					echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Save) Save game to disk for server $SERVER_NUMBER is in progress. Please wait..."
 				fi
-			done < <(tail -n1 -f /tmp/$USER-$SERVICE_NAME-$SERVER_NUMBER-tmux.log)'
+			done < <(tail -n1 -f /tmp/$SERVICE_NAME-$SERVICE_NAME-$SERVER_NUMBER-tmux.log)'
 			EXIT_CODE="$?"
 			if [[ "$EXIT_CODE" == "124" ]]; then
 				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Save) Save time limit for server $SERVER_NUMBER exceeded."
@@ -552,7 +551,7 @@ script_sync() {
 	if [[ "$TMPFS_ENABLE" == "1" ]]; then
 		if [[ "$(systemctl --user show -p ActiveState --value $SERVICE)" == "active" ]]; then
 			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Sync) Sync from tmpfs to disk has been initiated." | tee -a "$LOG_SCRIPT"
-			rsync -av --info=progress2 $TMPFS_DIR/ $SRV_DIR #| sed -e "s/^/$(date +"%Y-%m-%d %H:%M:%S") [$NAME] [INFO] (Sync) Syncing: /" | tee -a "$LOG_SCRIPT"
+			rsync -aAXv --info=progress2 $TMPFS_DIR/ $SRV_DIR #| sed -e "s/^/$(date +"%Y-%m-%d %H:%M:%S") [$NAME] [INFO] (Sync) Syncing: /" | tee -a "$LOG_SCRIPT"
 			sleep 1
 			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Sync) Sync from tmpfs to disk has been completed." | tee -a "$LOG_SCRIPT"
 		fi
@@ -999,23 +998,23 @@ script_update() {
 	fi
 	
 	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Update) Removing Steam/appcache/appinfo.vdf" | tee -a "$LOG_SCRIPT"
-	rm -rf "/srv/$USER/.steam/appcache/appinfo.vdf"
+	rm -rf "/srv/$SERVICE_NAME/.steam/appcache/appinfo.vdf"
 	
 	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Update) Connecting to steam servers." | tee -a "$LOG_SCRIPT"
 	
 	
 	if [[ "$STEAMGUARD_CLI" == "1" ]]; then
-		steamcmd +login $STEAMCMD_UID $STEAMCMD_PSW $(steamguard -m /srv/$USER/.steamguard/ code) +app_info_update 1 +app_info_print $APPID +quit > /srv/$USER/updates/steam_app_data.txt
+		steamcmd +login $STEAMCMD_UID $STEAMCMD_PSW $(steamguard -m /srv/$SERVICE_NAME/.steamguard/ code) +app_info_update 1 +app_info_print $APPID +quit > /srv/$SERVICE_NAME/updates/steam_app_data.txt
 	else
-		steamcmd +login $STEAMCMD_UID $STEAMCMD_PSW +app_info_update 1 +app_info_print $APPID +quit > /srv/$USER/updates/steam_app_data.txt
+		steamcmd +login $STEAMCMD_UID $STEAMCMD_PSW +app_info_update 1 +app_info_print $APPID +quit > /srv/$SERVICE_NAME/updates/steam_app_data.txt
 	fi
 	
 	if [[ "$STEAMCMD_BETA_BRANCH" == "0" ]]; then
-		AVAILABLE_BUILDID=$(cat /srv/$USER/updates/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"public\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"buildid\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
-		AVAILABLE_TIME=$(cat /srv/$USER/updates/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"public\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"timeupdated\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
+		AVAILABLE_BUILDID=$(cat /srv/$SERVICE_NAME/updates/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"public\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"buildid\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
+		AVAILABLE_TIME=$(cat /srv/$SERVICE_NAME/updates/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"public\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"timeupdated\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
 	elif [[ "$STEAMCMD_BETA_BRANCH" == "1" ]]; then
-		AVAILABLE_BUILDID=$(cat /srv/$USER/updates/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"$STEAMCMD_BETA_BRANCH_NAME\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"buildid\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
-		AVAILABLE_TIME=$(cat /srv/$USER/updates/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"$STEAMCMD_BETA_BRANCH_NAME\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"timeupdated\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
+		AVAILABLE_BUILDID=$(cat /srv/$SERVICE_NAME/updates/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"$STEAMCMD_BETA_BRANCH_NAME\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"buildid\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
+		AVAILABLE_TIME=$(cat /srv/$SERVICE_NAME/updates/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"$STEAMCMD_BETA_BRANCH_NAME\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"timeupdated\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
 	fi
 	
 	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Update) Received application info data." | tee -a "$LOG_SCRIPT"
@@ -1045,7 +1044,7 @@ script_update() {
 		sleep 1
 		
 		if [[ "$TMPFS_ENABLE" == "1" ]]; then
-			rsync -av --info=progress2 $TMPFS_DIR/ $SRV_DIR
+			rsync -aAXv --info=progress2 $TMPFS_DIR/ $SRV_DIR
 			rm -rf $TMPFS_DIR/$WINE_PREFIX_GAME_DIR
 		fi
 		
@@ -1053,9 +1052,9 @@ script_update() {
 		
 		if [[ "$STEAMGUARD_CLI" == "1" ]]; then
 			if [[ "$STEAMCMD_BETA_BRANCH" == "0" ]]; then
-				steamcmd +@sSteamCmdForcePlatformType windows +login $STEAMCMD_UID $STEAMCMD_PSW $(steamguard -m /srv/$USER/.steamguard/ code) +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +app_update $APPID validate +quit
+				steamcmd +@sSteamCmdForcePlatformType windows +login $STEAMCMD_UID $STEAMCMD_PSW $(steamguard -m /srv/$SERVICE_NAME/.steamguard/ code) +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +app_update $APPID validate +quit
 			elif [[ "$STEAMCMD_BETA_BRANCH" == "1" ]]; then
-				steamcmd +@sSteamCmdForcePlatformType windows +login $STEAMCMD_UID $STEAMCMD_PSW $(steamguard -m /srv/$USER/.steamguard/ code) +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +app_update $APPID -beta $STEAMCMD_BETA_BRANCH_NAME validate +quit
+				steamcmd +@sSteamCmdForcePlatformType windows +login $STEAMCMD_UID $STEAMCMD_PSW $(steamguard -m /srv/$SERVICE_NAME/.steamguard/ code) +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +app_update $APPID -beta $STEAMCMD_BETA_BRANCH_NAME validate +quit
 			fi
 		else
 			if [[ "$STEAMCMD_BETA_BRANCH" == "0" ]]; then
@@ -1071,7 +1070,7 @@ script_update() {
 		
 		if [[ "$TMPFS_ENABLE" == "1" ]]; then
 			mkdir -p $TMPFS_DIR/$WINE_PREFIX_GAME_DIR/Build
-			rsync -av --info=progress2 $SRV_DIR/ $TMPFS_DIR
+			rsync -aAXv --info=progress2 $SRV_DIR/ $TMPFS_DIR
 		fi
 		
 		for SERVER_SERVICE in "${WAS_ACTIVE[@]}"; do
@@ -1084,7 +1083,7 @@ script_update() {
 		done
 		
 		if [[ "$EMAIL_UPDATE" == "1" ]]; then
-			mail -r "$EMAIL_SENDER ($NAME-$USER)" -s "Notification: Update" $EMAIL_RECIPIENT <<- EOF
+			mail -r "$EMAIL_SENDER ($NAME-$SERVICE_NAME)" -s "Notification: Update" $EMAIL_RECIPIENT <<- EOF
 			Server was updated. Please check the update notes if there are any additional steps to take.
 			EOF
 		fi
@@ -1126,7 +1125,7 @@ script_verify_game_integrity() {
 	fi
 	
 	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Integrity check) Removing Steam/appcache/appinfo.vdf" | tee -a "$LOG_SCRIPT"
-	rm -rf "/srv/$USER/.steam/appcache/appinfo.vdf"
+	rm -rf "/srv/$SERVICE_NAME/.steam/appcache/appinfo.vdf"
 	
 	IFS=","
 	for SERVER_SERVICE in $(systemctl --user list-units -all --no-legend --no-pager $SERVICE@*.service | awk '{print $1}' | tr "\\n" "," | sed 's/,$//'); do
@@ -1139,15 +1138,15 @@ script_verify_game_integrity() {
 	sleep 1
 	
 	if [[ "$TMPFS_ENABLE" == "1" ]]; then
-		rsync -av --info=progress2 $TMPFS_DIR/ $SRV_DIR
+		rsync -aAXv --info=progress2 $TMPFS_DIR/ $SRV_DIR
 		rm -rf $TMPFS_DIR/$WINE_PREFIX_GAME_DIR
 	fi
 	
 	if [[ "$STEAMGUARD_CLI" == "1" ]]; then
 		if [[ "$STEAMCMD_BETA_BRANCH" == "0" ]]; then
-			steamcmd +@sSteamCmdForcePlatformType windows +login $STEAMCMD_UID $STEAMCMD_PSW $(steamguard -m /srv/$USER/.steamguard/ code) +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +app_update $APPID validate +quit
+			steamcmd +@sSteamCmdForcePlatformType windows +login $STEAMCMD_UID $STEAMCMD_PSW $(steamguard -m /srv/$SERVICE_NAME/.steamguard/ code) +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +app_update $APPID validate +quit
 		elif [[ "$STEAMCMD_BETA_BRANCH" == "1" ]]; then
-			steamcmd +@sSteamCmdForcePlatformType windows +login $STEAMCMD_UID $STEAMCMD_PSW $(steamguard -m /srv/$USER/.steamguard/ code) +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +app_update $APPID -beta $STEAMCMD_BETA_BRANCH_NAME validate +quit
+			steamcmd +@sSteamCmdForcePlatformType windows +login $STEAMCMD_UID $STEAMCMD_PSW $(steamguard -m /srv/$SERVICE_NAME/.steamguard/ code) +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +app_update $APPID -beta $STEAMCMD_BETA_BRANCH_NAME validate +quit
 		fi
 	else
 		if [[ "$STEAMCMD_BETA_BRANCH" == "0" ]]; then
@@ -1161,7 +1160,7 @@ script_verify_game_integrity() {
 	
 	if [[ "$TMPFS_ENABLE" == "1" ]]; then
 		mkdir -p $TMPFS_DIR/$WINE_PREFIX_GAME_DIR/Build
-		rsync -av --info=progress2 $SRV_DIR/ $TMPFS_DIR
+		rsync -aAXv --info=progress2 $SRV_DIR/ $TMPFS_DIR
 	fi
 	
 	for SERVER_SERVICE in "${WAS_ACTIVE[@]}"; do
@@ -1518,25 +1517,25 @@ script_diagnostics() {
 		echo "zip version:$(dpkg -s zip | grep "^Version" | cut -d : -f2)"
 	fi
 	
-	if [ -d "/srv/$USER/config" ]; then
+	if [ -d "/srv/$SERVICE_NAME/config" ]; then
 		echo "Configuration folder present: Yes"
 	else
 		echo "Configuration folder present: No"
 	fi
 
-	if [ -d "/srv/$USER/backups" ]; then
+	if [ -d "/srv/$SERVICE_NAME/backups" ]; then
 		echo "Backups folder present: Yes"
 	else
 		echo "Backups folder present: No"
 	fi
 	
-	if [ -d "/srv/$USER/logs" ]; then
+	if [ -d "/srv/$SERVICE_NAME/logs" ]; then
 		echo "Logs folder present: Yes"
 	else
 		echo "Logs folder present: No"
 	fi
 	
-	if [ -d "/srv/$USER/server" ]; then
+	if [ -d "/srv/$SERVICE_NAME/server" ]; then
 		echo "Server folder present: Yes"
 		echo ""
 		echo "List of installed applications in the prefix:"
@@ -1546,7 +1545,7 @@ script_diagnostics() {
 		echo "Server folder present: No"
 	fi
 	
-	if [ -d "/srv/$USER/updates" ]; then
+	if [ -d "/srv/$SERVICE_NAME/updates" ]; then
 		echo "Updates folder present: Yes"
 	else
 		echo "Updates folder present: No"
@@ -1558,55 +1557,55 @@ script_diagnostics() {
 		echo "Configuration file present: No"
 	fi
 
-	if [ -f "/srv/$USER/.config/systemd/user/$SERVICE_NAME-sync-tmpfs.service" ]; then
+	if [ -f "/srv/$SERVICE_NAME/.config/systemd/user/$SERVICE_NAME-sync-tmpfs.service" ]; then
 		echo "Tmpfs Sync service present: Yes"
 	else
 		echo "Tmpfs Sync service present: No"
 	fi
 	
-	if [ -f "/srv/$USER/.config/systemd/user/$SERVICE_NAME-tmpfs@.service" ]; then
+	if [ -f "/srv/$SERVICE_NAME/.config/systemd/user/$SERVICE_NAME-tmpfs@.service" ]; then
 		echo "Tmpfs service present: Yes"
 	else
 		echo "Tmpfs service present: No"
 	fi
 	
-	if [ -f "/srv/$USER/.config/systemd/user/$SERVICE@.service" ]; then
+	if [ -f "/srv/$SERVICE_NAME/.config/systemd/user/$SERVICE@.service" ]; then
 		echo "Basic service present: Yes"
 	else
 		echo "Basic service present: No"
 	fi
 	
-	if [ -f "/srv/$USER/.config/systemd/user/$SERVICE_NAME-timer-1.timer" ]; then
+	if [ -f "/srv/$SERVICE_NAME/.config/systemd/user/$SERVICE_NAME-timer-1.timer" ]; then
 		echo "Timer 1 timer present: Yes"
 	else
 		echo "Timer 1 timer present: No"
 	fi
 	
-	if [ -f "/srv/$USER/.config/systemd/user/$SERVICE_NAME-timer-1.service" ]; then
+	if [ -f "/srv/$SERVICE_NAME/.config/systemd/user/$SERVICE_NAME-timer-1.service" ]; then
 		echo "Timer 1 service present: Yes"
 	else
 		echo "Timer 1 service present: No"
 	fi
 	
-	if [ -f "/srv/$USER/.config/systemd/user/$SERVICE_NAME-timer-2.timer" ]; then
+	if [ -f "/srv/$SERVICE_NAME/.config/systemd/user/$SERVICE_NAME-timer-2.timer" ]; then
 		echo "Timer 2 timer present: Yes"
 	else
 		echo "Timer 2 timer present: No"
 	fi
 	
-	if [ -f "/srv/$USER/.config/systemd/user/$SERVICE_NAME-timer-2.service" ]; then
+	if [ -f "/srv/$SERVICE_NAME/.config/systemd/user/$SERVICE_NAME-timer-2.service" ]; then
 		echo "Timer 2 service present: Yes"
 	else
 		echo "Timer 2 service present: No"
 	fi
 	
-	if [ -f "/srv/$USER/.config/systemd/user/$SERVICE_NAME-send-notification@.service" ]; then
+	if [ -f "/srv/$SERVICE_NAME/.config/systemd/user/$SERVICE_NAME-send-notification@.service" ]; then
 		echo "Notification sending service present: Yes"
 	else
 		echo "Notification sending service present: No"
 	fi
 	
-	if [ -f "/srv/$USER/.config/systemd/user/$SERVICE_NAME-commands@.service" ]; then
+	if [ -f "/srv/$SERVICE_NAME/.config/systemd/user/$SERVICE_NAME-commands@.service" ]; then
 		echo "Commands script service present: Yes"
 	else
 		echo "Commands script service present: No"
@@ -1677,28 +1676,28 @@ script_install_steam() {
 		if [[ "$INSTALL_STEAMCMD_GAME_FILES" =~ ^([yY][eE][sS]|[yY])$ ]]; then
 			echo "Installing game..."
 			if [[ "$INSTALL_STEAMGUARD_CLI" == "1" ]]; then
-				steamcmd +login $INSTALL_STEAMCMD_UID $INSTALL_STEAMCMD_PSW $(steamguard -m /srv/$USER/.steamguard/ code) +app_info_update 1 +app_info_print $APPID +quit > /srv/$USER/updates/steam_app_data.txt
+				steamcmd +login $INSTALL_STEAMCMD_UID $INSTALL_STEAMCMD_PSW $(steamguard -m /srv/$SERVICE_NAME/.steamguard/ code) +app_info_update 1 +app_info_print $APPID +quit > /srv/$SERVICE_NAME/updates/steam_app_data.txt
 			else
-				steamcmd +login $INSTALL_STEAMCMD_UID $INSTALL_STEAMCMD_PSW +app_info_update 1 +app_info_print $APPID +quit > /srv/$USER/updates/steam_app_data.txt
+				steamcmd +login $INSTALL_STEAMCMD_UID $INSTALL_STEAMCMD_PSW +app_info_update 1 +app_info_print $APPID +quit > /srv/$SERVICE_NAME/updates/steam_app_data.txt
 			fi
 
 			if [[ "$INSTALL_STEAMCMD_BETA_BRANCH" == "0" ]]; then
-				INSTALLED_BUILDID=$(cat /srv/$USER/updates/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"public\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"buildid\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
-				INSTALLED_TIME=$(cat /srv/$USER/updates/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"public\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"timeupdated\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
+				INSTALLED_BUILDID=$(cat /srv/$SERVICE_NAME/updates/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"public\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"buildid\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
+				INSTALLED_TIME=$(cat /srv/$SERVICE_NAME/updates/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"public\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"timeupdated\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
 				echo "$INSTALLED_BUILDID" > $UPDATE_DIR/installed.buildid
 				echo "$INSTALLED_TIME" > $UPDATE_DIR/installed.timeupdated
 				if [[ "$INSTALL_STEAMGUARD_CLI" == "1" ]]; then
-					steamcmd +login $INSTALL_STEAMCMD_UID $INSTALL_STEAMCMD_PSW $(steamguard -m /srv/$USER/.steamguard/ code) +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +app_update $APPID validate +quit"
+					steamcmd +login $INSTALL_STEAMCMD_UID $INSTALL_STEAMCMD_PSW $(steamguard -m /srv/$SERVICE_NAME/.steamguard/ code) +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +app_update $APPID validate +quit"
 				else
 					steamcmd +login $INSTALL_STEAMCMD_UID $INSTALL_STEAMCMD_PSW +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +app_update $APPID validate +quit"
 				fi
 			elif [[ "$INSTALL_STEAMCMD_BETA_BRANCH" == "1" ]]; then
-				INSTALLED_BUILDID=$(cat /srv/$USER/updates/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"$INSTALL_STEAMCMD_BETA_BRANCH_NAME\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"buildid\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
-				INSTALLED_TIME=$(cat /srv/$USER/updates/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"$INSTALL_STEAMCMD_BETA_BRANCH_NAME\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"timeupdated\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
+				INSTALLED_BUILDID=$(cat /srv/$SERVICE_NAME/updates/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"$INSTALL_STEAMCMD_BETA_BRANCH_NAME\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"buildid\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
+				INSTALLED_TIME=$(cat /srv/$SERVICE_NAME/updates/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"$INSTALL_STEAMCMD_BETA_BRANCH_NAME\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"timeupdated\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
 				echo "$INSTALLED_BUILDID" > $UPDATE_DIR/installed.buildid
 				echo "$INSTALLED_TIME" > $UPDATE_DIR/installed.timeupdated
 				if [[ "$INSTALL_STEAMGUARD_CLI" == "1" ]]; then
-					steamcmd +login $INSTALL_STEAMCMD_UID $INSTALL_STEAMCMD_PSW $(steamguard -m /srv/$USER/.steamguard/ code) +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +app_update $APPID -beta $INSTALL_STEAMCMD_BETA_BRANCH_NAME validate +quit"
+					steamcmd +login $INSTALL_STEAMCMD_UID $INSTALL_STEAMCMD_PSW $(steamguard -m /srv/$SERVICE_NAME/.steamguard/ code) +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +app_update $APPID -beta $INSTALL_STEAMCMD_BETA_BRANCH_NAME validate +quit"
 				else
 					steamcmd +login $INSTALL_STEAMCMD_UID $INSTALL_STEAMCMD_PSW +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +app_update $APPID -beta $INSTALL_STEAMCMD_BETA_BRANCH_NAME validate +quit"
 				fi
@@ -1916,11 +1915,11 @@ script_install_tmpfs() {
 			cat >> /etc/fstab <<- EOF
 
 			# /mnt/tmpfs
-			tmpfs				   /mnt/tmpfs		tmpfs		   rw,size=$INSTALL_TMPFS_SIZE,uid=$(id -u $SERVICE_NAME),mode=0777	0 0
+			tmpfs				   /srv/isrsrv/tmpfs		tmpfs		   rw,size=$INSTALL_TMPFS_SIZE,uid=$(id -u $SERVICE_NAME),mode=0777	0 0
 			EOF
 		else
 			echo "Add the following line to /etc/fstab:"
-			echo "tmpfs				   /mnt/tmpfs		tmpfs		   rw,size=$INSTALL_TMPFS_SIZE,uid=$(id -u $SERVICE_NAME),mode=0777	0 0"
+			echo "tmpfs				   /srv/isrsrv/tmpfs		tmpfs		   rw,size=$INSTALL_TMPFS_SIZE,uid=$(id -u $SERVICE_NAME),mode=0777	0 0"
 		fi
 		sed -i 's/script_tmpfs=0/script_tmpfs=1/g' /srv/$SERVICE_NAME/config/$SERVICE_NAME-script.conf
 	else
