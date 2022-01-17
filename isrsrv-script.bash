@@ -1008,7 +1008,7 @@ script_update() {
 	
 	
 	if [[ "$STEAMGUARD_CLI" == "1" ]]; then
-		steamcmd +login $STEAMCMD_UID $STEAMCMD_PSW $(steamguard -m /srv/$SERVICE_NAME/.steamguard/ code) +app_info_update 1 +app_info_print $APPID +quit > /srv/$SERVICE_NAME/updates/steam_app_data.txt
+		steamcmd +login $STEAMCMD_UID $STEAMCMD_PSW $(steamguard) +app_info_update 1 +app_info_print $APPID +quit > /srv/$SERVICE_NAME/updates/steam_app_data.txt
 	else
 		steamcmd +login $STEAMCMD_UID $STEAMCMD_PSW +app_info_update 1 +app_info_print $APPID +quit > /srv/$SERVICE_NAME/updates/steam_app_data.txt
 	fi
@@ -1056,9 +1056,9 @@ script_update() {
 		
 		if [[ "$STEAMGUARD_CLI" == "1" ]]; then
 			if [[ "$STEAMCMD_BETA_BRANCH" == "0" ]]; then
-				steamcmd +@sSteamCmdForcePlatformType windows +login $STEAMCMD_UID $STEAMCMD_PSW $(steamguard -m /srv/$SERVICE_NAME/.steamguard/ code) +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +app_update $APPID validate +quit
+				steamcmd +@sSteamCmdForcePlatformType windows +login $STEAMCMD_UID $STEAMCMD_PSW $(steamguard) +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +app_update $APPID validate +quit
 			elif [[ "$STEAMCMD_BETA_BRANCH" == "1" ]]; then
-				steamcmd +@sSteamCmdForcePlatformType windows +login $STEAMCMD_UID $STEAMCMD_PSW $(steamguard -m /srv/$SERVICE_NAME/.steamguard/ code) +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +app_update $APPID -beta $STEAMCMD_BETA_BRANCH_NAME validate +quit
+				steamcmd +@sSteamCmdForcePlatformType windows +login $STEAMCMD_UID $STEAMCMD_PSW $(steamguard) +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +app_update $APPID -beta $STEAMCMD_BETA_BRANCH_NAME validate +quit
 			fi
 		else
 			if [[ "$STEAMCMD_BETA_BRANCH" == "0" ]]; then
@@ -1148,9 +1148,9 @@ script_verify_game_integrity() {
 	
 	if [[ "$STEAMGUARD_CLI" == "1" ]]; then
 		if [[ "$STEAMCMD_BETA_BRANCH" == "0" ]]; then
-			steamcmd +@sSteamCmdForcePlatformType windows +login $STEAMCMD_UID $STEAMCMD_PSW $(steamguard -m /srv/$SERVICE_NAME/.steamguard/ code) +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +app_update $APPID validate +quit
+			steamcmd +@sSteamCmdForcePlatformType windows +login $STEAMCMD_UID $STEAMCMD_PSW $(steamguard) +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +app_update $APPID validate +quit
 		elif [[ "$STEAMCMD_BETA_BRANCH" == "1" ]]; then
-			steamcmd +@sSteamCmdForcePlatformType windows +login $STEAMCMD_UID $STEAMCMD_PSW $(steamguard -m /srv/$SERVICE_NAME/.steamguard/ code) +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +app_update $APPID -beta $STEAMCMD_BETA_BRANCH_NAME validate +quit
+			steamcmd +@sSteamCmdForcePlatformType windows +login $STEAMCMD_UID $STEAMCMD_PSW $(steamguard) +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +app_update $APPID -beta $STEAMCMD_BETA_BRANCH_NAME validate +quit
 		fi
 	else
 		if [[ "$STEAMCMD_BETA_BRANCH" == "0" ]]; then
@@ -1630,8 +1630,8 @@ script_diagnostics() {
 #Installs the steam configuration files and the game if the user so chooses
 script_install_steam() {
 	echo ""
-	read -p "Do you want to use steam to download the game files and be resposible for maintaining them? (y/n): " INSTALL_STEAMCMD
-	if [[ "$INSTALL_STEAMCMD" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+	read -p "Do you want to use steam to download the game files and be resposible for maintaining them? (y/n): " INSTALL_STEAMCMD_ENABLE
+	if [[ "$INSTALL_STEAMCMD_ENABLE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
 		while [[ "$INSTALL_STEAMCMD_SUCCESS" != "0" ]]; do
 			read -p "Enter your Steam username: " INSTALL_STEAMCMD_UID
 			echo ""
@@ -1647,17 +1647,17 @@ script_install_steam() {
 		done
 
 		echo ""
-		read -p "Do you have a Steam Guard Authentication app installed and configured? (y/n): " INSTALL_STEAMGUARD_CLI_STATE
-		if [[ "$INSTALL_STEAMGUARD_CLI_STATE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+		read -p "Do you have a Steam Guard Authentication app installed and configured? (y/n): " INSTALL_STEAMGUARD_CLI_ENABLE
+		if [[ "$INSTALL_STEAMGUARD_CLI_ENABLE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
 			INSTALL_STEAMGUARD_CLI="1"
 		else
 			INSTALL_STEAMGUARD_CLI="0"
 		fi
 
 		echo ""
-		read -p "Do you want the script to store your Steam credentials in the script's config file for automatic updates? (y/n): " INSTALL_STEAMCMD_STORE_CREDENTIALS_SETUP
-		INSTALL_STEAMCMD_STORE_CREDENTIALS_SETUP=${INSTALL_STEAMCMD_STORE_CREDENTIALS_SETUP:=n}
-		if [[ "$INSTALL_STEAMCMD_STORE_CREDENTIALS_SETUP" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+		read -p "Do you want the script to store your Steam credentials in the script's config file for automatic updates? (y/n): " INSTALL_STEAMCMD_STORE_CREDENTIALS_ENABLE
+		INSTALL_STEAMCMD_STORE_CREDENTIALS_ENABLE=${INSTALL_STEAMCMD_STORE_CREDENTIALS_ENABLE:=n}
+		if [[ "$INSTALL_STEAMCMD_STORE_CREDENTIALS_ENABLE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
 			echo "Your Steam credentials WILL be stored on this system. Updates will be installed automaticly when an update is released."
 			INSTALL_STEAMCMD_STORE_CREDENTIALS="1"
 		else
@@ -1666,22 +1666,22 @@ script_install_steam() {
 		fi
 
 		echo ""
-		read -p "Enable beta branch? Used for experimental and legacy versions. (y/n): " INSTALL_STEAMCMD_BETA_BRANCH_STATE
-		if [[ "$INSTALL_STEAMCMD_BETA_BRANCH_STATE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+		read -p "Enable beta branch? Used for experimental and legacy versions. (y/n): " INSTALL_STEAMCMD_BETA_BRANCH_ENABLE
+		if [[ "$INSTALL_STEAMCMD_BETA_BRANCH_ENABLE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
 			INSTALL_STEAMCMD_BETA_BRANCH="1"
 			echo "Look up beta branch names at https://steamdb.info/app/$APPID/depots/"
 			echo "Name example: ir_0.2.8"
 			read -p "Enter beta branch name: " INSTALL_STEAMCMD_BETA_BRANCH_NAME
-		elif [[ "$SET_BETA_BRANCH_STATE" =~ ^([nN][oO]|[nN])$ ]]; then
+		elif [[ "$INSTALL_STEAMCMD_BETA_BRANCH_ENABLE" =~ ^([nN][oO]|[nN])$ ]]; then
 			INSTALL_STEAMCMD_BETA_BRANCH="0"
 			INSTALL_STEAMCMD_BETA_BRANCH_NAME="none"
 		fi
 
-		read -p "Do you want to install the server files with steam now? (y/n): " INSTALL_STEAMCMD_GAME_FILES
-		if [[ "$INSTALL_STEAMCMD_GAME_FILES" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+		read -p "Do you want to install the server files with steam now? (y/n): " INSTALL_STEAMCMD_GAME_FILES_ENABLE
+		if [[ "$INSTALL_STEAMCMD_GAME_FILES_ENABLE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
 			echo "Installing game..."
 			if [[ "$INSTALL_STEAMGUARD_CLI" == "1" ]]; then
-				steamcmd +login $INSTALL_STEAMCMD_UID $INSTALL_STEAMCMD_PSW $(steamguard -m /srv/$SERVICE_NAME/.steamguard/ code) +app_info_update 1 +app_info_print $APPID +quit > /srv/$SERVICE_NAME/updates/steam_app_data.txt
+				steamcmd +login $INSTALL_STEAMCMD_UID $INSTALL_STEAMCMD_PSW $(steamguard) +app_info_update 1 +app_info_print $APPID +quit > /srv/$SERVICE_NAME/updates/steam_app_data.txt
 			else
 				steamcmd +login $INSTALL_STEAMCMD_UID $INSTALL_STEAMCMD_PSW +app_info_update 1 +app_info_print $APPID +quit > /srv/$SERVICE_NAME/updates/steam_app_data.txt
 			fi
@@ -1692,9 +1692,9 @@ script_install_steam() {
 				echo "$INSTALLED_BUILDID" > $UPDATE_DIR/installed.buildid
 				echo "$INSTALLED_TIME" > $UPDATE_DIR/installed.timeupdated
 				if [[ "$INSTALL_STEAMGUARD_CLI" == "1" ]]; then
-					steamcmd +login $INSTALL_STEAMCMD_UID $INSTALL_STEAMCMD_PSW $(steamguard -m /srv/$SERVICE_NAME/.steamguard/ code) +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +app_update $APPID validate +quit"
+					steamcmd +login $INSTALL_STEAMCMD_UID $INSTALL_STEAMCMD_PSW $(steamguard) +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +app_update $APPID validate +quit
 				else
-					steamcmd +login $INSTALL_STEAMCMD_UID $INSTALL_STEAMCMD_PSW +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +app_update $APPID validate +quit"
+					steamcmd +login $INSTALL_STEAMCMD_UID $INSTALL_STEAMCMD_PSW +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +app_update $APPID validate +quit
 				fi
 			elif [[ "$INSTALL_STEAMCMD_BETA_BRANCH" == "1" ]]; then
 				INSTALLED_BUILDID=$(cat /srv/$SERVICE_NAME/updates/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"$INSTALL_STEAMCMD_BETA_BRANCH_NAME\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"buildid\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
@@ -1702,9 +1702,9 @@ script_install_steam() {
 				echo "$INSTALLED_BUILDID" > $UPDATE_DIR/installed.buildid
 				echo "$INSTALLED_TIME" > $UPDATE_DIR/installed.timeupdated
 				if [[ "$INSTALL_STEAMGUARD_CLI" == "1" ]]; then
-					steamcmd +login $INSTALL_STEAMCMD_UID $INSTALL_STEAMCMD_PSW $(steamguard -m /srv/$SERVICE_NAME/.steamguard/ code) +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +app_update $APPID -beta $INSTALL_STEAMCMD_BETA_BRANCH_NAME validate +quit"
+					steamcmd +login $INSTALL_STEAMCMD_UID $INSTALL_STEAMCMD_PSW $(steamguard) +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +app_update $APPID -beta $INSTALL_STEAMCMD_BETA_BRANCH_NAME validate +quit
 				else
-					steamcmd +login $INSTALL_STEAMCMD_UID $INSTALL_STEAMCMD_PSW +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +app_update $APPID -beta $INSTALL_STEAMCMD_BETA_BRANCH_NAME validate +quit"
+					steamcmd +login $INSTALL_STEAMCMD_UID $INSTALL_STEAMCMD_PSW +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +app_update $APPID -beta $INSTALL_STEAMCMD_BETA_BRANCH_NAME validate +quit
 				fi
 			fi
 		else
@@ -1723,7 +1723,7 @@ script_install_steam() {
 
 	echo "Writing configuration file..."
 	touch $CONFIG_DIR/$SERVICE_NAME-steam.conf
-	if [[ "$STEAM_STORE_CREDENTIALS" == "1" ]]; then
+	if [[ "$INSTALL_STEAMCMD_STORE_CREDENTIALS" == "1" ]]; then
 		echo 'steamcmd_username='"$INSTALL_STEAMCMD_UID" > $CONFIG_DIR/$SERVICE_NAME-steam.conf
 		echo 'steamcmd_password='"$INSTALL_STEAMCMD_PSW" >> $CONFIG_DIR/$SERVICE_NAME-steam.conf
 		echo "steamcmd_steamguardapp=$INSTALL_STEAMGUARD_CLI" > $CONFIG_DIR/$SERVICE_NAME-steam.conf
@@ -1805,15 +1805,10 @@ script_install_email() {
 	echo ""
 	read -p "Enable email notifications (y/n): " INSTALL_EMAIL_ENABLE
 	if [[ "$INSTALL_EMAIL_ENABLE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-		read -p "Is postfix already configured on your system? (y/n): " INSTALL_EMAIL_CONFIGURED
 		echo ""
-		read -p "Enter your email address for the server (example: example@gmail.com): " INSTALL_EMAIL_SENDER
+		read -p "Enter the email that will send the notifications (example: sender@gmail.com): " INSTALL_EMAIL_SENDER
 		echo ""
-		if [[ "$INSTALL_EMAIL_CONFIGURED" =~ ^([nN][oO]|[nN])$ ]]; then
-			read -p "Enter your password for $INSTALL_EMAIL_SENDER : " INSTALL_EMAIL_SENDER_PSW
-		fi
-		echo ""
-		read -p "Enter the email that will recieve the notifications (example: example2@gmail.com): " INSTALL_EMAIL_RECIPIENT
+		read -p "Enter the email that will recieve the notifications (example: recipient@gmail.com): " INSTALL_EMAIL_RECIPIENT
 		echo ""
 		read -p "Email notifications for game updates? (y/n): " INSTALL_EMAIL_UPDATE_ENABLE
 			if [[ "$INSTALL_EMAIL_UPDATE_ENABLE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
@@ -1822,15 +1817,15 @@ script_install_email() {
 				INSTALL_EMAIL_UPDATE="0"
 			fi
 		echo ""
-		read -p "Email notifications for server startup? (WARNING: this can be anoying) (y/n): " INSTALL_EMAIL_CRASH_ENABLE
-			if [[ "$INSTALL_EMAIL_CRASH_ENABLE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+		read -p "Email notifications for server startup? (WARNING: this can be anoying) (y/n): " INSTALL_EMAIL_START_ENABLE
+			if [[ "$INSTALL_EMAIL_START_ENABLE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
 				INSTALL_EMAIL_START="1"
 			else
 				INSTALL_EMAIL_START="0"
 			fi
 		echo ""
-		read -p "Email notifications for server shutdown? (WARNING: this can be anoying) (y/n): " INSTALL_EMAIL_CRASH_ENABLE
-			if [[ "$INSTALL_EMAIL_CRASH_ENABLE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+		read -p "Email notifications for server shutdown? (WARNING: this can be anoying) (y/n): " INSTALL_EMAIL_STOP_ENABLE
+			if [[ "$INSTALL_EMAIL_STOP_ENABLE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
 				INSTALL_EMAIL_STOP="1"
 			else
 				INSTALL_EMAIL_STOP="0"
@@ -1842,16 +1837,18 @@ script_install_email() {
 			else
 				INSTALL_EMAIL_CRASH="0"
 			fi
-		if [[ "$INSTALL_EMAIL_CONFIGURED" =~ ^([nN][oO]|[nN])$ ]]; then
-			echo ""
-			read -p "Enter the relay host (example: smtp.gmail.com): " INSTALL_EMAIL_RELAY_HOST
-			echo ""
-			read -p "Enter the relay host port (example: 587): " INSTALL_EMAIL_RELAY_HOST_PORT
-			echo ""
+		if [[ "$EUID" == "$(id -u root)" ]] ; then
+			read -p "Configure postfix? (y/n): " INSTALL_EMAIL_CONFIGURE
+			if [[ "$INSTALL_EMAIL_CONFIGURE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+				echo ""
+				read -p "Enter the relay host (example: smtp.gmail.com): " INSTALL_EMAIL_RELAY_HOSTNAME
+				echo ""
+				read -p "Enter the relay host port (example: 587): " INSTALL_EMAIL_RELAY_PORT
+				echo ""
+				read -p "Enter your password for $INSTALL_EMAIL_SENDER : " INSTALL_EMAIL_SENDER_PSW
 
-			if [ "$EUID" -ne "0" ]; then
 				cat >> /etc/postfix/main.cf <<- EOF
-				relayhost = [$INSTALL_EMAIL_RELAY_HOST]:$INSTALL_EMAIL_RELAY_HOST_PORT
+				relayhost = [$INSTALL_EMAIL_RELAY_HOST]:$INSTALL_EMAIL_RELAY_PORT
 				smtp_sasl_auth_enable = yes
 				smtp_sasl_password_maps = hash:/etc/postfix/sasl_passwd
 				smtp_sasl_security_options = noanonymous
@@ -1861,30 +1858,30 @@ script_install_email() {
 				EOF
 
 				cat > /etc/postfix/sasl_passwd <<- EOF
-				[$INSTALL_EMAIL_RELAY_HOST]:$INSTALL_EMAIL_RELAY_HOST_PORT    $INSTALL_EMAIL_SENDER:$INSTALL_EMAIL_SENDER_PSW
+				[$INSTALL_EMAIL_RELAY_HOST]:$INSTALL_EMAIL_RELAY_PORT    $INSTALL_EMAIL_SENDER:$INSTALL_EMAIL_SENDER_PSW
 				EOF
 
 				sudo chmod 400 /etc/postfix/sasl_passwd
 				sudo postmap /etc/postfix/sasl_passwd
-				sudo systemctl enable postfix
-			else
-				echo "Add the following lines to /etc/postfix/main.cf"
-				echo "relayhost = [$INSTALL_EMAIL_RELAY_HOST]:$INSTALL_EMAIL_RELAY_HOST_PORT"
-				echo "smtp_sasl_auth_enable = yes"
-				echo "smtp_sasl_password_maps = hash:/etc/postfix/sasl_passwd"
-				echo "smtp_sasl_security_options = noanonymous"
-				echo "smtp_tls_CApath = /etc/ssl/certs"
-				echo "smtpd_tls_CApath = /etc/ssl/certs"
-				echo "smtp_use_tls = yes"
-				echo ""
-				echo "Add the following line to /etc/postfix/sasl_passwd"
-				echo "[$INSTALL_EMAIL_RELAY_HOST]:$INSTALL_EMAIL_RELAY_HOST_PORT    $INSTALL_EMAIL_SENDER:$INSTALL_EMAIL_SENDER_PSW"
-				echo ""
-				echo "Execute the following commands:"
-				echo "sudo chmod 400 /etc/postfix/sasl_passwd"
-				echo "sudo postmap /etc/postfix/sasl_passwd"
-				echo "sudo systemctl enable postfix"
+				sudo systemctl enable --now postfix
 			fi
+		else
+			echo "Add the following lines to /etc/postfix/main.cf"
+			echo "relayhost = [$INSTALL_EMAIL_RELAY_HOST]:$INSTALL_EMAIL_RELAY_HOST_PORT"
+			echo "smtp_sasl_auth_enable = yes"
+			echo "smtp_sasl_password_maps = hash:/etc/postfix/sasl_passwd"
+			echo "smtp_sasl_security_options = noanonymous"
+			echo "smtp_tls_CApath = /etc/ssl/certs"
+			echo "smtpd_tls_CApath = /etc/ssl/certs"
+			echo "smtp_use_tls = yes"
+			echo ""
+			echo "Add the following line to /etc/postfix/sasl_passwd"
+			echo "[$INSTALL_EMAIL_RELAY_HOST]:$INSTALL_EMAIL_RELAY_HOST_PORT    $INSTALL_EMAIL_SENDER:$INSTALL_EMAIL_SENDER_PSW"
+			echo ""
+			echo "Execute the following commands:"
+			echo "sudo chmod 400 /etc/postfix/sasl_passwd"
+			echo "sudo postmap /etc/postfix/sasl_passwd"
+			echo "sudo systemctl enable postfix"
 		fi
 	elif [[ "$INSTALL_EMAIL_ENABLE" =~ ^([nN][oO]|[nN])$ ]]; then
 		INSTALL_EMAIL_SENDER="none"
@@ -1916,11 +1913,11 @@ script_install_tmpfs() {
 	if [[ "$INSTALL_TMPFS" =~ ^([yY][eE][sS]|[yY])$ ]]; then
 		read -p "Ramdisk size (I recommend at least 8GB): " INSTALL_TMPFS_SIZE
 		echo "Installing ramdisk configuration"
-		if [ "$EUID" -ne "0" ]; then
+		if [[ "$EUID" == "$(id -u root)" ]] ; then
 			cat >> /etc/fstab <<- EOF
 
 			# /mnt/tmpfs
-			tmpfs				   /srv/isrsrv/tmpfs		tmpfs		   rw,size=$INSTALL_TMPFS_SIZE,uid=$(id -u $SERVICE_NAME),mode=0777	0 0
+			tmpfs				   /srv/$SERVICE_NAME/tmpfs		tmpfs		   rw,size=$INSTALL_TMPFS_SIZE,uid=$(id -u $SERVICE_NAME),mode=0777	0 0
 			EOF
 		else
 			echo "Add the following line to /etc/fstab:"
@@ -2013,11 +2010,21 @@ if [[ "send_notification_start_initialized" != "$1" ]] && [[ "send_notification_
 	SCRIPT_PID_CHECK=$(basename -- "$0")
 	if pidof -x "$SCRIPT_PID_CHECK" -o $$ > /dev/null; then
 		echo "An another instance of this script is already running, please clear all the sessions of this script before starting a new session"
-		exit 1
+		exit 2
 	fi
 fi
 
 #---------------------------
+
+#Check what user is executing the script and allow root to execute certain functions.
+if [[ "$EUID" != "$(id -u $SERVICE_NAME)" ]] && [[ "install_email" != "$1" ]] && [[ "install_tmpfs" != "$1" ]]; then
+	echo "This script is only able to be executed by the $SERVICE_NAME user."
+	echo "The following functions can also be executed as root: diag, install_email, install_tmpfs"
+	exit 3
+fi
+
+#---------------------------
+
 #Script help page
 case "$1" in
 	help)
