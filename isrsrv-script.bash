@@ -2,13 +2,13 @@
 
 #Interstellar Rift server script by 7thCore
 #If you do not know what any of these settings are you are better off leaving them alone. One thing might brake the other if you fiddle around with it.
-VERSION="202201141818"
+VERSION="202201170047"
 
 #Basics
 NAME="IsRSrv" #Name of the tmux session
 
 #Server configuration
-SERVICE_NAME="isrsrv" #Name of the service files, script and script log
+SERVICE_NAME="isrsrv" #Name of the service files, user, script and script log
 SRV_DIR="/srv/$SERVICE_NAME/server" #Location of the server located on your hdd/ssd
 SCRIPT_NAME="$SERVICE_NAME-script.bash" #Script name
 CONFIG_DIR="/srv/$SERVICE_NAME/config" #Location of this script
@@ -24,9 +24,13 @@ if [ -f "$CONFIG_DIR/$SERVICE_NAME-script.conf" ] ; then
 	UPDATE_IGNORE_FAILED_ACTIVATIONS=$(cat $CONFIG_DIR/$SERVICE_NAME-script.conf | grep script_update_ignore_failed_startups= | cut -d = -f2) #Ignore failed startups during update configuration
 	TIMEOUT_SAVE=$(cat $CONFIG_DIR/$SERVICE_NAME-script.conf | grep script_timeout_save= | cut -d = -f2) #Get timeout configuration for save timeout.
 else
-	if [[ "install" != "$1" ]] && [[ "help" != "$1" ]]; then
-		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Configuration) Error: The script configuration file is missing. Generating missing configuration strings using default values."
-	fi
+	TMPFS_ENABLE=0
+	BCKP_DELOLD=7
+	LOG_DELOLD=7
+	LOG_GAME_DELOLD=7
+	DUMP_GAME_DELOLD=7
+	UPDATE_IGNORE_FAILED_ACTIVATIONS=0
+	TIMEOUT_SAVE=120
 fi
 
 #Steamcmd configuration
@@ -1517,6 +1521,7 @@ script_diagnostics() {
 		echo "zip version:$(dpkg -s zip | grep "^Version" | cut -d : -f2)"
 	fi
 	
+	#Check if files/folders present
 	if [ -d "/srv/$SERVICE_NAME/config" ]; then
 		echo "Configuration folder present: Yes"
 	else
@@ -1946,7 +1951,7 @@ script_install() {
 	echo -e ""
 	echo -e "The script can work either way. The $SERVICE_NAME user's home directory is located in /srv/$SERVICE_NAME and all files are located there."
 	echo -e "This configuration installation will only install the essential configuration. No steam, discord, email or tmpfs/ramdisk"
-	echo -e "configuration will be applied and it can work without it. You can run the optional configuration for each using the"
+	echo -e "Default configuration will be applied and it can work without it. You can run the optional configuration for each using the"
 	echo -e "following arguments with the script:"
 	echo -e ""
 	echo -e "${GREEN}install_steam   ${RED}- ${GREEN}Configures steamcmd, automatic updates and installs the game server files.${NC}"
@@ -2010,29 +2015,6 @@ if [[ "send_notification_start_initialized" != "$1" ]] && [[ "send_notification_
 		echo "An another instance of this script is already running, please clear all the sessions of this script before starting a new session"
 		exit 1
 	fi
-fi
-
-if [ "$EUID" -ne "0" ] && [ -f "$CONFIG_DIR/$SERVICE_NAME-script.conf" ]; then #Check if script executed as root, if not generate missing config fields
-	touch $CONFIG_DIR/$SERVICE_NAME-script.conf
-	CONFIG_FIELDS="script_tmpfs,script_commands,script_bckp_delold,script_log_delold,script_log_game_delold,script_dump_game_delold,script_timeout_save,script_update_ignore_failed_startups"
-	IFS=","
-	for CONFIG_FIELD in $CONFIG_FIELDS; do
-		if ! grep -q $CONFIG_FIELD $CONFIG_DIR/$SERVICE_NAME-script.conf; then
-			if [[ "$CONFIG_FIELD" == "script_bckp_delold" ]]; then
-				echo "$CONFIG_FIELD=14" >> $CONFIG_DIR/$SERVICE_NAME-script.conf
-			elif [[ "$CONFIG_FIELD" == "script_log_delold" ]]; then
-				echo "$CONFIG_FIELD=14" >> $CONFIG_DIR/$SERVICE_NAME-script.conf
-			elif [[ "$CONFIG_FIELD" == "script_log_game_delold" ]]; then
-				echo "$CONFIG_FIELD=14" >> $CONFIG_DIR/$SERVICE_NAME-script.conf
-			elif [[ "$CONFIG_FIELD" == "script_dump_game_delold" ]]; then
-				echo "$CONFIG_FIELD=14" >> $CONFIG_DIR/$SERVICE_NAME-script.conf
-			elif [[ "$CONFIG_FIELD" == "script_timeout_save" ]]; then
-				echo "$CONFIG_FIELD=120" >> $CONFIG_DIR/$SERVICE_NAME-script.conf
-			else
-				echo "$CONFIG_FIELD=0" >> $CONFIG_DIR/$SERVICE_NAME-script.conf
-			fi
-		fi
-	done
 fi
 
 #---------------------------
