@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION="202201170047"
+VERSION="1.4-1"
 NAME="IsRSrv" #Name of the tmux session
 SERVICE_NAME="isrsrv" #Name of the service files, script and script log
 

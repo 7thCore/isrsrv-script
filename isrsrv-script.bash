@@ -4,6 +4,7 @@
 #If you do not know what any of these settings are you are better off leaving them alone. One thing might brake the other if you fiddle around with it.
 
 #Basics
+VERSION="1.4-1"
 NAME="IsRSrv" #Name of the tmux session
 
 #Server configuration
@@ -1913,9 +1914,11 @@ script_config_tmpfs() {
 			echo "Add the following line to /etc/fstab:"
 			echo "tmpfs				   /srv/isrsrv/tmpfs		tmpfs		   rw,size=$INSTALL_TMPFS_SIZE,uid=$(id -u $SERVICE_NAME),mode=0777	0 0"
 		fi
-		sed -i 's/script_tmpfs=0/script_tmpfs=1/g' /srv/$SERVICE_NAME/config/$SERVICE_NAME-script.conf
+		sed -i '/script_tmpfs/d' $CONFIG_DIR/$SERVICE_NAME-script.conf
+		echo "script_tmpfs=1" >> $CONFIG_DIR/$SERVICE_NAME-script.conf
 	else
-		sed -i 's/script_tmpfs=1/script_tmpfs=0/g' /srv/$SERVICE_NAME/config/$SERVICE_NAME-script.conf
+		sed -i '/script_tmpfs/d' $CONFIG_DIR/$SERVICE_NAME-script.conf
+		echo "script_tmpfs=0" >> $CONFIG_DIR/$SERVICE_NAME-script.conf
 	fi
 	chown $SERVICE_NAME /srv/$SERVICE_NAME/config/$SERVICE_NAME-script.conf
 }
