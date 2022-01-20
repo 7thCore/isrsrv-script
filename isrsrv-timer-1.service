@@ -1,0 +1,6 @@
+[Unit]
+Description=IsRSrv Script Timer 1 Service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/isrsrv-script timer_one

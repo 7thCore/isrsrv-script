@@ -1,0 +1,9 @@
+post_install() {
+  getent group isrsrv >/dev/null || groupadd --system isrsrv
+  getent passwd isrsrv >/dev/null || useradd --system -g isrsrv \
+    -d /srv/isrsrv/ -s /bin/bash isrsrv
+
+  chown -R isrsrv:isrsrv srv/isrsrv
+  loginctl enable-linger isrsrv
+  systemctl start user@$(id -u isrsrv).service
+}

@@ -1,0 +1,34 @@
+[Unit]
+Description=IsRSrv TmpFs Server Service
+Requires=isrsrv-sync-tmpfs.service
+After=network.target mnt-tmpfs.mount isrsrv-sync-tmpfs.service
+Conflicts=isrsrv.service
+StartLimitBurst=3
+StartLimitIntervalSec=300
+StartLimitAction=none
+OnFailure=isrsrv-send-notification@%i.service
+
+[Service]
+Type=forking
+KillMode=process
+WorkingDirectory=/srv/isrsrv/tmpfs/drive_c/Games/InterstellarRift/Build/
+ExecStartPre=/usr/bin/isrsrv-script server_tmux_install %i
+ExecStartPre=/usr/bin/isrsrv-script send_notification_start_initialized %i
+ExecStartPre=/usr/bin/rsync -aAVx --info=progress /srv/isrsrv/server/drive_c/users/isrsrv/AppData/Roaming/InterstellarRift/{server_%i.json,server_%i,userdb_%i,workshop_%i} /srv/isrsrv/tmpfs/drive_c/users/isrsrv/AppData/Roaming/InterstellarRift/
+ExecStart=/usr/bin/tmux -f /tmp/%u-%i-tmux.conf -L %u-%i-tmux.sock new-session -d -s IsRSrv 'env WINEARCH=win64 WINEDEBUG=warn+heap WINEPREFIX=/srv/isrsrv/tmpfs wine /srv/isrsrv/tmpfs/drive_c/Games/InterstellarRift/Build/IR.exe -server -serverAddition %i -inline -linux -nossl -noConsoleAutoComplete 2> /srv/isrsrv/logs/isrsrv-wine-%i.log'
+ExecStartPost=/usr/bin/isrsrv-script send_notification_start_complete %i
+ExecStop=/usr/bin/isrsrv-script send_notification_stop_initialized %i
+ExecStop=/usr/bin/tmux -L %u-%i-tmux.sock send-keys -t IsRSrv.0 'quittimer 15 Server shutting down in 15 seconds!' ENTER
+ExecStop=/usr/bin/sleep 20
+ExecStop=/usr/bin/rsync -aAVx --info=progress  /srv/isrsrv/tmpfs/drive_c/users/isrsrv/AppData/Roaming/InterstellarRift/{server_%i.json,server_%i,userdb_%i,workshop_%i} /srv/isrsrv/server/drive_c/users/isrsrv/AppData/Roaming/InterstellarRift
+ExecStopPost=/usr/bin/rm /tmp/%u-%i-tmux.log
+ExecStopPost=/usr/bin/rm /tmp/%u-%i-tmux.conf
+ExecStopPost=/usr/bin/isrsrv-script move_wine_log %i
+ExecStopPost=/usr/bin/isrsrv-script send_notification_stop_complete %i
+TimeoutStartSec=infinity
+TimeoutStopSec=120
+RestartSec=10
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
