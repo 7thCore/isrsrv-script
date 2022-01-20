@@ -1,6 +1,12 @@
 #!/bin/bash
-VERSION="1.4-1"
+
+#Interstellar Rift commands script by 7thCore
+
+#Basics
 NAME="IsRSrv" #Name of the tmux session
+VERSION="1.5-2" #Package and script version
+
+#Server configuration
 SERVICE_NAME="isrsrv" #Name of the service files, script and script log
 
 echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] [Server $1] (Commands) Commands script is now active and waiting for input on server $1."
