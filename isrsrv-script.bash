@@ -5,7 +5,7 @@
 
 #Basics
 NAME="IsRSrv" #Name of the tmux session
-VERSION="1.5-2" #Package and script version
+VERSION="1.5-3" #Package and script version
 
 #Server configuration
 SERVICE_NAME="isrsrv" #Name of the service files, user, script and script log
@@ -108,7 +108,6 @@ BCKP_DEST="$BCKP_DIR/$(date +"%Y")/$(date +"%m")/$(date +"%d")" #How backups are
 export LOG_DIR="/srv/$SERVICE_NAME/logs/$(date +"%Y")/$(date +"%m")/$(date +"%d")"
 export LOG_DIR_ALL="/srv/$SERVICE_NAME/logs"
 export LOG_SCRIPT="$LOG_DIR/$SERVICE_NAME-script.log" #Script log
-export LOG_TMP="/tmp/$SERVICE_NAME-$SERVICE_NAME-tmux.log"
 export CRASH_DIR="/srv/$SERVICE_NAME/logs/crashes/$(date +"%Y-%m-%d_%H-%M")"
 
 #Console collors
