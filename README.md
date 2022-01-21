@@ -10,4 +10,6 @@ Check the wiki for detailed instructions:
 
 -------------------------
 
-[Pre-built packages](isrsrv-script/tree/main/built-packages)
+[Pre-built packages](built-packages)
+
+[a link to a branch](/7thCore/isrsrv-script/tree/pkg-arch)
