@@ -47,7 +47,7 @@ depends=('bash'
          'lib32-gst-plugins-base'
          'lib32-gst-plugins-good'
          'steamcmd')
-backup=('isrsrv-commands')
+backup=('')
 install=isrsrv-script.install
 source=('isrsrv-script.bash'
         'isrsrv-commands.bash'
@@ -62,8 +62,8 @@ source=('isrsrv-script.bash'
         'isrsrv-commands@.service'
         'bash_profile')
 noextract=('')
-sha256sums=('cfa6a76202b338892415b396fc4ea9d9d91ed55bd28178e9b2f0effb5437b704'
-            '07b9b7f3fc8f69d663422931b77ef6c55103fc80b699bb5b422ddeb2089d46e7'
+sha256sums=('a82505db53a401ed23c5e059b5c6e651a220b148cb36c4ad3c17255902338649'
+            '53d5f32bac0375f07b7efc6f0fd0a6e330ab03314377700a6f3fe9052b11e379'
             '6323f441cd77c4ee2d8566e21cf77195047f9830a96613bf7587af3eeef23545'
             '370c7ab205ef5a8d8b446a0c40224b898cb691671980e2c501d556f645e41c48'
             'f9f1206b4cc49b2c38ae4104f259044b89e1df682819f3ef5360a2259f643b79'
