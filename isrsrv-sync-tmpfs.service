@@ -1,6 +1,6 @@
 [Unit]
 Description=IsRSrv TmpFs sync
-After=mnt-tmpfs.mount
+After=srv-isrsrv-tmpfs.mount
 
 [Service]
 Type=oneshot
