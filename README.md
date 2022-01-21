@@ -10,4 +10,4 @@ Check the wiki for detailed instructions:
 
 -------------------------
 
-[Pre-built packages](isrsrv-script/blob/main/built-packages)
+[Pre-built packages](isrsrv-script/tree/main/built-packages)
