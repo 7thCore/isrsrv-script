@@ -1,7 +1,7 @@
 [Unit]
 Description=IsRSrv TmpFs Server Service
 Requires=isrsrv-sync-tmpfs.service
-After=network.target mnt-tmpfs.mount isrsrv-sync-tmpfs.service
+After=network.target srv-isrsrv-tmpfs.mount isrsrv-sync-tmpfs.service
 Conflicts=isrsrv.service
 StartLimitBurst=3
 StartLimitIntervalSec=300
