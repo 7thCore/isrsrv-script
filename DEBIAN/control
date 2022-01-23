@@ -1,5 +1,5 @@
 Package: isrsrv-script
-Version: 1.5-5
+Version: 1.5-6
 Architecture: amd64
 Essential: no
 Priority: optional
