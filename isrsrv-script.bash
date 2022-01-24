@@ -1,16 +1,30 @@
 #!/bin/bash
 
+#    Copyright (C) 2022 7thCore
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 #Interstellar Rift server script by 7thCore
 #If you do not know what any of these settings are you are better off leaving them alone. One thing might brake the other if you fiddle around with it.
 
 #Basics
 export NAME="IsRSrv" #Name of the tmux session
-export VERSION="1.5-6" #Package and script version
+export VERSION="1.5-7" #Package and script version
 
 #Server configuration
 export SERVICE_NAME="isrsrv" #Name of the service files, user, script and script log
 SRV_DIR="/srv/$SERVICE_NAME/server" #Location of the server located on your hdd/ssd
-SCRIPT_NAME="$SERVICE_NAME-script.bash" #Script name
 CONFIG_DIR="/srv/$SERVICE_NAME/config" #Location of this script
 UPDATE_DIR="/srv/$SERVICE_NAME/updates" #Location of update information for the script's automatic update feature
 
@@ -48,6 +62,19 @@ else
 	STEAMGUARD_CLI="0"
 fi
 
+#Discord configuration
+if [ -f "$CONFIG_DIR/$SERVICE_NAME-discord.conf" ] ; then
+	DISCORD_UPDATE=$(cat $CONFIG_DIR/$SERVICE_NAME-discord.conf | grep discord_update= | cut -d = -f2) #Send notification when the server updates
+	DISCORD_START=$(cat $CONFIG_DIR/$SERVICE_NAME-discord.conf | grep discord_start= | cut -d = -f2) #Send notifications when the server starts
+	DISCORD_STOP=$(cat $CONFIG_DIR/$SERVICE_NAME-discord.conf | grep discord_stop= | cut -d = -f2) #Send notifications when the server stops
+	DISCORD_CRASH=$(cat $CONFIG_DIR/$SERVICE_NAME-discord.conf | grep discord_crash= | cut -d = -f2) #Send notifications when the server crashes
+else
+	DISCORD_UPDATE="0"
+	DISCORD_START="0"
+	DISCORD_STOP="0"
+	DISCORD_CRASH="0"
+fi
+
 #Email configuration
 if [ -f "$CONFIG_DIR/$SERVICE_NAME-email.conf" ] ; then
 	EMAIL_SENDER=$(cat $CONFIG_DIR/$SERVICE_NAME-email.conf | grep email_sender= | cut -d = -f2) #Send emails from this address
@@ -63,19 +90,6 @@ else
 	EMAIL_START="0"
 	EMAIL_STOP="0"
 	EMAIL_CRASH="0"
-fi
-
-#Discord configuration
-if [ -f "$CONFIG_DIR/$SERVICE_NAME-discord.conf" ] ; then
-	DISCORD_UPDATE=$(cat $CONFIG_DIR/$SERVICE_NAME-discord.conf | grep discord_update= | cut -d = -f2) #Send notification when the server updates
-	DISCORD_START=$(cat $CONFIG_DIR/$SERVICE_NAME-discord.conf | grep discord_start= | cut -d = -f2) #Send notifications when the server starts
-	DISCORD_STOP=$(cat $CONFIG_DIR/$SERVICE_NAME-discord.conf | grep discord_stop= | cut -d = -f2) #Send notifications when the server stops
-	DISCORD_CRASH=$(cat $CONFIG_DIR/$SERVICE_NAME-discord.conf | grep discord_crash= | cut -d = -f2) #Send notifications when the server crashes
-else
-	DISCORD_UPDATE="0"
-	DISCORD_START="0"
-	DISCORD_STOP="0"
-	DISCORD_CRASH="0"
 fi
 
 #App id of the steam game
@@ -238,7 +252,7 @@ script_remove_server() {
 script_attach() {
 	script_logs
 	if [ -z "$1" ]; then
-		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Attach) Failed to attach. Specify server ID: $SCRIPT_NAME -attach ID" | tee -a "$LOG_SCRIPT"
+		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Attach) Failed to attach. Specify server ID: $SERVICE_NAME-script -attach ID" | tee -a "$LOG_SCRIPT"
 	else
 		tmux -L $SERVICE_NAME-$1-tmux.sock has-session -t $NAME 2>/dev/null
 		if [ $? == 0 ]; then
@@ -1418,13 +1432,19 @@ script_diagnostics() {
 		echo "xvfb version:$(pacman -Qi xorg-server-xvfb | grep "^Version" | cut -d : -f2)"
 		echo "postfix version:$(pacman -Qi postfix | grep "^Version" | cut -d : -f2)"
 		echo "zip version:$(pacman -Qi zip | grep "^Version" | cut -d : -f2)"
-	elif [[ "$DISTRO" == "ubuntu" ]]; then
+	elif [[ "$DISTRO" == "debian" ]]; then
 		echo "xvfb version:$(dpkg -s xvfb | grep "^Version" | cut -d : -f2)"
 		echo "postfix version:$(dpkg -s postfix | grep "^Version" | cut -d : -f2)"
 		echo "zip version:$(dpkg -s zip | grep "^Version" | cut -d : -f2)"
 	fi
 	
 	#Check if files/folders present
+	if [ -f "/usr/bin/$SERVICE_NAME-script" ] ; then
+		echo "Script present: Yes"
+	else
+		echo "Script present: No"
+	fi
+
 	if [ -d "/srv/$SERVICE_NAME/config" ]; then
 		echo "Configuration folder present: Yes"
 	else
@@ -1452,7 +1472,7 @@ script_diagnostics() {
 	else
 		echo "Server folder present: No"
 	fi
-	
+
 	if [ -d "/srv/$SERVICE_NAME/updates" ]; then
 		echo "Updates folder present: Yes"
 	else
@@ -1460,9 +1480,27 @@ script_diagnostics() {
 	fi
 
 	if [ -f "$CONFIG_DIR/$SERVICE_NAME-script.conf" ] ; then
-		echo "Configuration file present: Yes"
+		echo "Script configuration file present: Yes"
 	else
-		echo "Configuration file present: No"
+		echo "Script configuration file present: No"
+	fi
+
+	if [ -f "$CONFIG_DIR/$SERVICE_NAME-steam.conf" ] ; then
+		echo "Steam configuration file present: Yes"
+	else
+		echo "Steam configuration file present: No"
+	fi
+
+	if [ -f "$CONFIG_DIR/$SERVICE_NAME-discord.conf" ] ; then
+		echo "Discord configuration file present: Yes"
+	else
+		echo "Discord configuration file present: No"
+	fi
+
+	if [ -f "$CONFIG_DIR/$SERVICE_NAME-email.conf" ] ; then
+		echo "Email configuration file present: Yes"
+	else
+		echo "Email configuration file present: No"
 	fi
 
 	if [ -f "/srv/$SERVICE_NAME/.config/systemd/user/$SERVICE_NAME-sync-tmpfs.service" ]; then
@@ -1921,6 +1959,11 @@ case "$1" in
 		echo -e "${CYAN}$NAME server script by 7thCore${NC}"
 		echo "Version: $VERSION"
 		echo ""
+		echo "IsRSrv-Script  Copyright (C) 2022 7thCore"
+		echo "This program comes with ABSOLUTELY NO WARRANTY"
+		echo "This is free software, and you are welcome to redistribute it"
+		echo "under certain conditions; check the project's github page for details."
+		echo ""
 		echo "Basic script commands:"
 		echo -e "${GREEN}diag   ${RED}- ${GREEN}Prints out package versions and if script files are installed.${NC}"
 		echo -e "${GREEN}status ${RED}- ${GREEN}Display status of server.${NC}"
@@ -1964,6 +2007,7 @@ case "$1" in
 		echo ""
 		echo "Wine functions:"
 		echo -e "${GREEN}rebuild_prefix ${RED}- ${GREEN}Reinstalls the wine prefix. Usefull if any wine prefix updates occoured.${NC}"
+		echo ""
 		;;
 #---------------------------
 #Basic script functions

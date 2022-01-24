@@ -2,9 +2,10 @@
 
 pkgname=isrsrv-script
 pkgver=1.5
-pkgrel=6
+pkgrel=7
 pkgdesc='Interstelalr Rift server script for running the server on linux with wine compatibility layer.'
 arch=('x86_64')
+license=('GPL3')
 depends=('bash'
          'coreutils'
          'sudo'
@@ -47,29 +48,27 @@ depends=('bash'
          'lib32-gst-plugins-base'
          'lib32-gst-plugins-good'
          'steamcmd')
-backup=('')
 install=isrsrv-script.install
-source=('isrsrv-script.bash'
-        'isrsrv-timer-1.timer'
-        'isrsrv-timer-1.service'
-        'isrsrv-timer-2.timer'
-        'isrsrv-timer-2.service'
+source=('bash_profile'
+        'isrsrv-script.bash'
         'isrsrv-send-notification@.service'
         'isrsrv@.service'
         'isrsrv-sync-tmpfs.service'
-        'isrsrv-tmpfs@.service'
-        'bash_profile')
-noextract=('')
-sha256sums=('000c644b8df46e72182f53f276df14b34187e14b01551f7a8ba848e7cb1c17af'
-            '6323f441cd77c4ee2d8566e21cf77195047f9830a96613bf7587af3eeef23545'
-            '370c7ab205ef5a8d8b446a0c40224b898cb691671980e2c501d556f645e41c48'
-            'f9f1206b4cc49b2c38ae4104f259044b89e1df682819f3ef5360a2259f643b79'
-            '985ee788a2307ead699880be28c06aefd6ef5341ef258db2e9db5de83762c38a'
-            '4baae350d37ec4b32945e14562a478df73caef0bbfe11c3cf4ace2b9464a31a9'
-            'a60e2e75824110f899c4be86be847aad6a49a9c57ac65d298f4cff2238289e5c'
-            '8a465b479005861d0e098e3269530f8aea89851d267241cb4ccf5b29ba33cb13'
-            '620184c0bdc0182a66e02132ae9754e6031275706590fc1f2634e15eb888b1a4'
-            'f1e2f643b81b27d16fe79e0563e39c597ce42621ae7c2433fd5b70f1eeab5d63')
+        'isrsrv-timer-1.service'
+        'isrsrv-timer-1.timer'
+        'isrsrv-timer-2.service'
+        'isrsrv-timer-2.timer'
+        'isrsrv-tmpfs@.service')
+sha256sums=('f1e2f643b81b27d16fe79e0563e39c597ce42621ae7c2433fd5b70f1eeab5d63'
+            'c68a6bb44aaf3caf9dffd902b4813e762a0ce52ff3661b0abf53d067bad319ad'
+            '3b5230d335033c9d55da30a4dda52b03907317bb5960fdb5c510ff38cc13a970'
+            '5dbcea8559f265e873364a34f7cc89ca5bb713c4e0fa439e9fadfdbe64b3f608'
+            'ff853ac3c2e89617f632536b0323ffc1fef9cf9578c3b56d571747ed36dfbda7'
+            '7b93ba35f0fad321709c8f71b600b0e5737f369787da4fa283cc8ab0ba48ae04'
+            '11358634dff614caadaf211ce7397cf0d7a068621d10aa726fee4b4205cd0e6d'
+            '0d474b1c6ea0a33d22fe45448d19ebc26753ff4180b95c6aec4d1d89e1ef7abb'
+            '9f58383366cf11c7f859681c47821b1d95986171a7c68a605f70ef6cc0444d83'
+            '010ec6935ec3a619e3139720ff888853292cbee5b8e8a0ce6d2cc7bd85d067d2')
 
 package() {
   install -d -m0755 "${pkgdir}/usr/bin"
