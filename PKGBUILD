@@ -59,7 +59,7 @@ source=('bash_profile'
         'isrsrv-timer-2.timer'
         'isrsrv-tmpfs@.service')
 sha256sums=('f1e2f643b81b27d16fe79e0563e39c597ce42621ae7c2433fd5b70f1eeab5d63'
-            '0e5965c3f774b8245bc1459ca5fc01f71efd68758e599da4dadb563be65d0b4c'
+            'a566a9fdf7b39833f7b9b91521eb29867204caf7435922850a36b6024b7eafeb'
             '3b5230d335033c9d55da30a4dda52b03907317bb5960fdb5c510ff38cc13a970'
             '5dbcea8559f265e873364a34f7cc89ca5bb713c4e0fa439e9fadfdbe64b3f608'
             'ff853ac3c2e89617f632536b0323ffc1fef9cf9578c3b56d571747ed36dfbda7'
