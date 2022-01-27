@@ -21,7 +21,7 @@
 
 #Basics
 export NAME="IsRSrv" #Name of the tmux session
-export VERSION="1.5-9" #Package and script version
+export VERSION="1.6-1" #Package and script version
 
 #Server configuration
 export SERVICE_NAME="isrsrv" #Name of the service files, user, script and script log
