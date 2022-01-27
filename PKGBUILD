@@ -1,8 +1,8 @@
 # Maintainer: 7thCore
 
 pkgname=isrsrv-script
-pkgver=1.5
-pkgrel=9
+pkgver=1.6
+pkgrel=1
 pkgdesc='Interstelalr Rift server script for running the server on linux with wine compatibility layer.'
 arch=('x86_64')
 license=('GPL3')
@@ -21,7 +21,6 @@ depends=('bash'
          'unzip'
          'p7zip'
          'postfix'
-         'samba'
          'cabextract'
          'xorg-server-xvfb'
          'wine'
@@ -59,7 +58,7 @@ source=('bash_profile'
         'isrsrv-timer-2.timer'
         'isrsrv-tmpfs@.service')
 sha256sums=('f1e2f643b81b27d16fe79e0563e39c597ce42621ae7c2433fd5b70f1eeab5d63'
-            'a566a9fdf7b39833f7b9b91521eb29867204caf7435922850a36b6024b7eafeb'
+            '3daf03897f019ddeb69050683c74ec2148b8160f6e534b82387dbef3d7e24e6e'
             '3b5230d335033c9d55da30a4dda52b03907317bb5960fdb5c510ff38cc13a970'
             '5dbcea8559f265e873364a34f7cc89ca5bb713c4e0fa439e9fadfdbe64b3f608'
             'ff853ac3c2e89617f632536b0323ffc1fef9cf9578c3b56d571747ed36dfbda7'
