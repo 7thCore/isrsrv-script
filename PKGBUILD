@@ -2,7 +2,7 @@
 
 pkgname=isrsrv-script
 pkgver=1.6
-pkgrel=1
+pkgrel=2
 pkgdesc='Interstelalr Rift server script for running the server on linux with wine compatibility layer.'
 arch=('x86_64')
 license=('GPL3')
@@ -58,15 +58,15 @@ source=('bash_profile'
         'isrsrv-timer-2.timer'
         'isrsrv-tmpfs@.service')
 sha256sums=('f1e2f643b81b27d16fe79e0563e39c597ce42621ae7c2433fd5b70f1eeab5d63'
-            '3daf03897f019ddeb69050683c74ec2148b8160f6e534b82387dbef3d7e24e6e'
+            'c443e44e86b6db2dbe9592e6a09004f71e8352f410f0f626dcbc8fe540ac320e'
             '3b5230d335033c9d55da30a4dda52b03907317bb5960fdb5c510ff38cc13a970'
-            '5dbcea8559f265e873364a34f7cc89ca5bb713c4e0fa439e9fadfdbe64b3f608'
-            'ff853ac3c2e89617f632536b0323ffc1fef9cf9578c3b56d571747ed36dfbda7'
+            '2f500a308c25cbb70540d77c560ff3bcd25d5782ec627fa5a38c6500812bef38'
+            '8a7725345131ef139f367212c8bbb239e96b6f286bf1047bdd35c41e4cd7e420'
             '7b93ba35f0fad321709c8f71b600b0e5737f369787da4fa283cc8ab0ba48ae04'
             '11358634dff614caadaf211ce7397cf0d7a068621d10aa726fee4b4205cd0e6d'
             '0d474b1c6ea0a33d22fe45448d19ebc26753ff4180b95c6aec4d1d89e1ef7abb'
             '9f58383366cf11c7f859681c47821b1d95986171a7c68a605f70ef6cc0444d83'
-            '010ec6935ec3a619e3139720ff888853292cbee5b8e8a0ce6d2cc7bd85d067d2')
+            '8ca4b8039870fbd8409205cc1fa3df8498bac5230621328e684594ebe75cc0b0')
 
 package() {
   install -d -m0755 "${pkgdir}/usr/bin"
