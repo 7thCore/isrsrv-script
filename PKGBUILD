@@ -1,8 +1,22 @@
-# Maintainer: 7thCore
+#    Copyright (C) 2022 7thCore
+#    This file is part of IsRSrv-Script.
+#
+#    IsRSrv-Script is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    IsRSrv-Script is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 pkgname=isrsrv-script
 pkgver=1.6
-pkgrel=4
+pkgrel=5
 pkgdesc='Interstelalr Rift server script for running the server on linux with wine compatibility layer.'
 arch=('x86_64')
 license=('GPL3')
@@ -58,10 +72,10 @@ source=('bash_profile'
         'isrsrv-timer-2.timer'
         'isrsrv-tmpfs@.service')
 sha256sums=('f1e2f643b81b27d16fe79e0563e39c597ce42621ae7c2433fd5b70f1eeab5d63'
-            '8eff507957dab543a5fe9c7b3643836eaa419b495d1ab1b1d9fa1d4efe9b738f'
+            '77320dab1fa129835fe5c7db0da058f9fde85327a4b3ecd7d5c9a116ad11fecf'
             '3b5230d335033c9d55da30a4dda52b03907317bb5960fdb5c510ff38cc13a970'
             '9aa6c520c0a975cac4bc00f7988c1268d68653ac607117042f57f2a9089e5f97'
-            '8158c5ddfcf7da8450274bf6642339b7a45284509c0ad45415c0d753b1a61060'
+            '1e254761e4d1378a748f1f41e8af14c42a5e2ca9177b36f8f7acff23fccba5dd'
             '7b93ba35f0fad321709c8f71b600b0e5737f369787da4fa283cc8ab0ba48ae04'
             '11358634dff614caadaf211ce7397cf0d7a068621d10aa726fee4b4205cd0e6d'
             '0d474b1c6ea0a33d22fe45448d19ebc26753ff4180b95c6aec4d1d89e1ef7abb'
