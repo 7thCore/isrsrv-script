@@ -17,12 +17,19 @@
 [Unit]
 Description=IsRSrv TmpFs sync
 After=srv-isrsrv-tmpfs.mount
+StartLimitBurst=3
+StartLimitIntervalSec=300
+StartLimitAction=none
 
 [Service]
 Type=oneshot
 RemainAfterExit=true
 ExecStart=/usr/bin/isrsrv-script initial-sync start
 ExecStop=/usr/bin/isrsrv-script initial-sync stop
+TimeoutStartSec=infinity
+TimeoutStopSec=120
+RestartSec=10
+Restart=on-failure
 
 [Install]
 WantedBy=default.target
