@@ -19,19 +19,29 @@
 #Interstellar Rift server script by 7thCore
 #If you do not know what any of these settings are you are better off leaving them alone. One thing might brake the other if you fiddle around with it.
 
-#Basics
+#Static script variables
 export NAME="IsRSrv" #Name of the tmux session
-export VERSION="1.6-2" #Package and script version
-
-#Server configuration
+export VERSION="1.6-4" #Package and script version
 export SERVICE_NAME="isrsrv" #Name of the service files, user, script and script log
+export LOG_DIR="/srv/$SERVICE_NAME/logs" #Location of stored script logs
+export LOG_STRUCTURE="$LOG_DIR/$(date +"%Y")/$(date +"%m")/$(date +"%d")" #Location of the script's log files
+export LOG_SCRIPT="$LOG_STRUCTURE/$SERVICE_NAME-script.log" #Script log
 SRV_DIR="/srv/$SERVICE_NAME/server" #Location of the server located on your hdd/ssd
-CONFIG_DIR="/srv/$SERVICE_NAME/config" #Location of this script
+TMPFS_DIR="/srv/$SERVICE_NAME/tmpfs" #Locaton of your tmpfs partition.
+CONFIG_DIR="/srv/$SERVICE_NAME/config" #Location of this script's configuration
 UPDATE_DIR="/srv/$SERVICE_NAME/updates" #Location of update information for the script's automatic update feature
+BCKP_DIR="/srv/$SERVICE_NAME/backups" #Location of stored backups
+BCKP_STRUCTURE="$(date +"%Y")/$(date +"%m")/$(date +"%d")" #How backups are sorted, by default it's sorted in folders by month and day
+
+#Game specific configuration
+WINE_ARCH="win64" #Architecture of the wine prefix
+WINE_PREFIX_GAME_DIR="drive_c/Games/InterstellarRift" #Server executable directory
+WINE_PREFIX_GAME_CONFIG="drive_c/users/$SERVICE_NAME/AppData/Roaming/InterstellarRift"
+WINE_PREFIX_GAME_EXE="$SRV_DIR/$WINE_PREFIX_GAME_DIR/Build/IR.exe"
+APPID="363360"
 
 #Script configuration
-if [ -f "$CONFIG_DIR/$SERVICE_NAME-script.conf" ] ; then
-	TMPFS_ENABLE=$(cat $CONFIG_DIR/$SERVICE_NAME-script.conf | grep script_tmpfs= | cut -d = -f2) #Get configuration for tmpfs
+if [ -f "$CONFIG_DIR/$SERVICE_NAME-script.conf" ]; then
 	BCKP_DELOLD=$(cat $CONFIG_DIR/$SERVICE_NAME-script.conf | grep script_bckp_delold= | cut -d = -f2) #Delete old backups.
 	LOG_DELOLD=$(cat $CONFIG_DIR/$SERVICE_NAME-script.conf | grep script_log_delold= | cut -d = -f2) #Delete old logs.
 	LOG_GAME_DELOLD=$(cat $CONFIG_DIR/$SERVICE_NAME-script.conf | grep script_log_game_delold= | cut -d = -f2) #Delete old game logs.
@@ -39,7 +49,6 @@ if [ -f "$CONFIG_DIR/$SERVICE_NAME-script.conf" ] ; then
 	UPDATE_IGNORE_FAILED_ACTIVATIONS=$(cat $CONFIG_DIR/$SERVICE_NAME-script.conf | grep script_update_ignore_failed_startups= | cut -d = -f2) #Ignore failed startups during update configuration
 	TIMEOUT_SAVE=$(cat $CONFIG_DIR/$SERVICE_NAME-script.conf | grep script_timeout_save= | cut -d = -f2) #Get timeout configuration for save timeout.
 else
-	TMPFS_ENABLE=0
 	BCKP_DELOLD=7
 	LOG_DELOLD=7
 	LOG_GAME_DELOLD=7
@@ -49,7 +58,7 @@ else
 fi
 
 #Steamcmd configuration
-if [ -f "$CONFIG_DIR/$SERVICE_NAME-steam.conf" ] ; then
+if [ -f "$CONFIG_DIR/$SERVICE_NAME-steam.conf" ]; then
 	STEAMCMD_UID=$(cat $CONFIG_DIR/$SERVICE_NAME-steam.conf | grep steamcmd_username= | cut -d = -f2) #Your steam username
 	STEAMCMD_PSW=$(cat $CONFIG_DIR/$SERVICE_NAME-steam.conf | grep steamcmd_password= | cut -d = -f2) #Your steam password
 	STEAMCMD_BETA_BRANCH=$(cat $CONFIG_DIR/$SERVICE_NAME-steam.conf | grep steamcmd_beta_branch= | cut -d = -f2) #Beta branch enabled?
@@ -64,7 +73,7 @@ else
 fi
 
 #Discord configuration
-if [ -f "$CONFIG_DIR/$SERVICE_NAME-discord.conf" ] ; then
+if [ -f "$CONFIG_DIR/$SERVICE_NAME-discord.conf" ]; then
 	DISCORD_UPDATE=$(cat $CONFIG_DIR/$SERVICE_NAME-discord.conf | grep discord_update= | cut -d = -f2) #Send notification when the server updates
 	DISCORD_START=$(cat $CONFIG_DIR/$SERVICE_NAME-discord.conf | grep discord_start= | cut -d = -f2) #Send notifications when the server starts
 	DISCORD_STOP=$(cat $CONFIG_DIR/$SERVICE_NAME-discord.conf | grep discord_stop= | cut -d = -f2) #Send notifications when the server stops
@@ -77,7 +86,7 @@ else
 fi
 
 #Email configuration
-if [ -f "$CONFIG_DIR/$SERVICE_NAME-email.conf" ] ; then
+if [ -f "$CONFIG_DIR/$SERVICE_NAME-email.conf" ]; then
 	EMAIL_SENDER=$(cat $CONFIG_DIR/$SERVICE_NAME-email.conf | grep email_sender= | cut -d = -f2) #Send emails from this address
 	EMAIL_RECIPIENT=$(cat $CONFIG_DIR/$SERVICE_NAME-email.conf | grep email_recipient= | cut -d = -f2) #Send emails to this address
 	EMAIL_UPDATE=$(cat $CONFIG_DIR/$SERVICE_NAME-email.conf | grep email_update= | cut -d = -f2) #Send emails when server updates
@@ -93,38 +102,6 @@ else
 	EMAIL_CRASH="0"
 fi
 
-#App id of the steam game
-APPID="363360"
-
-#Wine configuration
-WINE_ARCH="win64" #Architecture of the wine prefix
-WINE_PREFIX_GAME_DIR="drive_c/Games/InterstellarRift" #Server executable directory
-WINE_PREFIX_GAME_EXE="Build/IR.exe -server -serverAddition %i -inline -linux -nossl -noConsoleAutoComplete" #Server executable
-WINE_PREFIX_GAME_CONFIG="drive_c/users/$SERVICE_NAME/AppData/Roaming/InterstellarRift"
-
-#Ramdisk configuration
-TMPFS_DIR="/srv/$SERVICE_NAME/tmpfs" #Locaton of your tmpfs partition.
-
-#TmpFs/hdd variables
-if [[ "$TMPFS_ENABLE" == "1" ]]; then
-	BCKP_SRC_DIR="$TMPFS_DIR/drive_c/users/$SERVICE_NAME/AppData/Roaming/InterstellarRift" #Application data of the tmpfs
-	SERVICE="$SERVICE_NAME-tmpfs" #TmpFs service file name
-else
-	BCKP_SRC_DIR="$SRV_DIR/drive_c/users/$SERVICE_NAME/AppData/Roaming/InterstellarRift" #Application data of the hdd/ssd
-	SERVICE="$SERVICE_NAME" #Hdd/ssd service file name
-fi
-
-#Backup configuration
-BCKP_SRC="*" #What files to backup, * for all
-BCKP_DIR="/srv/$SERVICE_NAME/backups" #Location of stored backups
-BCKP_DEST="$BCKP_DIR/$(date +"%Y")/$(date +"%m")/$(date +"%d")" #How backups are sorted, by default it's sorted in folders by month and day
-
-#Log configuration
-export LOG_DIR="/srv/$SERVICE_NAME/logs/$(date +"%Y")/$(date +"%m")/$(date +"%d")"
-export LOG_DIR_ALL="/srv/$SERVICE_NAME/logs"
-export LOG_SCRIPT="$LOG_DIR/$SERVICE_NAME-script.log" #Script log
-export CRASH_DIR="/srv/$SERVICE_NAME/logs/crashes/$(date +"%Y-%m-%d_%H-%M")"
-
 #Console collors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -137,8 +114,8 @@ NC='\033[0m'
 #Generate log folder structure
 script_logs() {
 	#If there is not a folder for today, create one
-	if [ ! -d "$LOG_DIR" ]; then
-		mkdir -p $LOG_DIR
+	if [ ! -d "$LOG_STRUCTURE" ]; then
+		mkdir -p $LOG_STRUCTURE
 	fi
 }
 
@@ -149,16 +126,37 @@ script_remove_old_files() {
 	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Remove old files) Beginning removal of old files." | tee -a "$LOG_SCRIPT"
 	#Delete old logs
 	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Remove old files) Removing old script logs: $LOG_DELOLD days old." | tee -a "$LOG_SCRIPT"
-	find $LOG_DIR_ALL/* -mtime +$LOG_DELOLD -delete
-	#Delete old game logs
-	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Remove old files) Removing old game logs: $LOG_GAME_DELOLD days old." | tee -a "$LOG_SCRIPT"
-	find $BCKP_SRC_DIR/Logs/* -mtime +$LOG_GAME_DELOLD -delete
-	#Delete old game dumps
-	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Remove old files) Removing old dump files: $DUMP_GAME_DELOLD days old." | tee -a "$LOG_SCRIPT"
-	find $BCKP_SRC_DIR/Dumps/* -mtime +$DUMP_GAME_DELOLD -delete
+	find $LOG_DIR/* -mtime +$LOG_DELOLD -delete
 	#Delete empty folders
 	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Remove old files) Removing empty script log folders." | tee -a "$LOG_SCRIPT"
-	find $LOG_DIR_ALL/ -type d -empty -delete
+	find $LOG_DIR/ -type d -empty -delete
+	IFS=","
+	#Delete old game dumps
+	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Remove old files) Removing old dump files: $DUMP_GAME_DELOLD days old." | tee -a "$LOG_SCRIPT"
+	if [ -d $SRV_DIR/$WINE_PREFIX_GAME_CONFIG/Dumps/ ]; then
+		find $SRV_DIR/$WINE_PREFIX_GAME_CONFIG/Dumps/* -mtime +$DUMP_GAME_DELOLD -delete
+	fi
+	if [ -d $TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/Dumps/ ]; then
+		find $TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/Dumps/* -mtime +$DUMP_GAME_DELOLD -delete
+	fi
+	for SERVER_SERVICE in $(systemctl --user list-units -all --no-legend --no-pager --plain $SERVICE_NAME@*.service $SERVICE_NAME-tmpfs@*.service | awk '{print $1}' | tr "\\n" "," | sed 's/,$//'); do
+		SERVER_TYPE=$(echo $SERVER_SERVICE | awk -F '@' '{print $1}')
+		SERVER_INSTANCE=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
+		if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+			#Delete old game logs
+			if [[ "#SERVER_TYPE" == "$SERVICE_NAME-tmpfs" ]]; then
+				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Remove old files) Removing old game logs for $SERVER_INSTANCE: $LOG_GAME_DELOLD days old." | tee -a "$LOG_SCRIPT"
+				find $TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/Logs_$SERVER_INSTANCE/* -mtime +$LOG_GAME_DELOLD -delete
+			fi
+			find $SRV_DIR/$WINE_PREFIX_GAME_CONFIG/Logs_$SERVER_INSTANCE/* -mtime +$LOG_GAME_DELOLD -delete
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Remove old files) Deleting old backups for $SERVER_INSTANCE: $BCKP_DELOLD days old." | tee -a "$LOG_SCRIPT"
+			# Delete old backups
+			find $BCKP_DIR/$SERVER_INSTANCE/* -type f -mtime +$BCKP_DELOLD -delete
+			# Delete empty folders
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Remove old files) Deleting empty backup folders for $SERVER_INSTANCE." | tee -a "$LOG_SCRIPT"
+			find $BCKP_DIR/$SERVER_INSTANCE/ -type d -empty -delete
+		fi
+	done
 	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Remove old files) Removal of old files complete." | tee -a "$LOG_SCRIPT"
 }
 
@@ -168,20 +166,18 @@ script_remove_old_files() {
 script_status() {
 	script_logs
 	IFS=","
-	for SERVER_SERVICE in $(cat $CONFIG_DIR/$SERVICE_NAME-server-list.txt | tr "\\n" "," | sed 's/,$//'); do
-		SERVER_NUMBER=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
-		if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "inactive" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_NUMBER is not running." | tee -a "$LOG_SCRIPT"
-		elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_NUMBER is running." | tee -a "$LOG_SCRIPT"
-		elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "failed" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_NUMBER is in failed state. Please check logs." | tee -a "$LOG_SCRIPT"
-		elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "activating" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_NUMBER is activating. Please wait." | tee -a "$LOG_SCRIPT"
-		elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "deactivating" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_NUMBER is in deactivating. Please wait." | tee -a "$LOG_SCRIPT"
-		elif [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "disabled" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_NUMBER is disabled." | tee -a "$LOG_SCRIPT"
+	for SERVER_SERVICE in $(systemctl --user list-units -all --no-legend --no-pager --plain $SERVICE_NAME@*.service $SERVICE_NAME-tmpfs@*.service | awk '{print $1}' | tr "\\n" "," | sed 's/,$//'); do
+		SERVER_INSTANCE=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
+		if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "inactive" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_INSTANCE is not running." | tee -a "$LOG_SCRIPT"
+		elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_INSTANCE is running." | tee -a "$LOG_SCRIPT"
+		elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "failed" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_INSTANCE is in failed state. Please check logs." | tee -a "$LOG_SCRIPT"
+		elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "activating" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_INSTANCE is activating. Please wait." | tee -a "$LOG_SCRIPT"
+		elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "deactivating" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_INSTANCE is in deactivating. Please wait." | tee -a "$LOG_SCRIPT"
 		fi
 	done
 	if pidof -x "$SCRIPT_PID_CHECK" -o $$ > /dev/null; then
@@ -197,24 +193,39 @@ script_status() {
 script_add_server() {
 	script_logs
 	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Add server instance) User adding new server instance." | tee -a "$LOG_SCRIPT"
-	read -p "Are you sure you want to add a server instance? (y/n): " ADD_SERVER_INSTANCE
-	if [[ "$ADD_SERVER_INSTANCE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+	read -p "Are you sure you want to add a server instance? (y/n): " ADD_SERVER_INSTANCE_ADD
+	if [[ "$ADD_SERVER_INSTANCE_ADD" =~ ^([yY][eE][sS]|[yY])$ ]]; then
 		echo ""
 		echo "List of current servers (your new server instance must NOT be identical to any of them!):"
-		if [ ! -f $CONFIG_DIR/$SERVICE_NAME-server-list.txt ] ; then
+		if [ ! -f $CONFIG_DIR/$SERVICE_NAME-server-list.txt ]; then
 			touch $CONFIG_DIR/$SERVICE_NAME-server-list.txt
 		fi
 		cat $CONFIG_DIR/$SERVICE_NAME-server-list.txt
 		echo ""
-		read -p "Specify your server instance (Single digit numbers must have a 0 before them. Example: 07): " SERVER_INSTANCE
-		echo "$SERVICE@$SERVER_INSTANCE.service" >> $CONFIG_DIR/$SERVICE_NAME-server-list.txt
-		systemctl --user enable $SERVICE@$SERVER_INSTANCE.service
-		echo ""
-		read -p "Server instance $SERVER_INSTANCE added successfully. Do you want to start it? (y/n): " START_SERVER_INSTANCE
-		if [[ "$START_SERVER_INSTANCE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-			systemctl --user start $SERVICE@$SERVER_INSTANCE.service
+		read -p "Specify your server instance (Single digit numbers must have a 0 before them. Examples: 01, 02 or 58): " SERVER_INSTANCE_ADD
+		read -p "Enable tmpfs for this server? (y/n): " SERVER_INSTANCE_ADD_TMPFS
+		if [[ "$SERVER_INSTANCE_ADD_TMPFS" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+			echo "$SERVICE_NAME-tmpfs@$SERVER_INSTANCE_ADD.service" >> $CONFIG_DIR/$SERVICE_NAME-server-list.txt
+			if [[ "$(systemctl --user show -p UnitFileState --value $SERVICE_NAME-sync-tmpfs.service)" == "disabled" ]]; then
+				systemctl --user enable --now $SERVICE_NAME-sync-tmpfs.service
+			fi
+			systemctl --user enable $SERVICE_NAME-tmpfs@$SERVER_INSTANCE_ADD.service
+		else
+			echo "$SERVICE_NAME@$SERVER_INSTANCE_ADD.service" >> $CONFIG_DIR/$SERVICE_NAME-server-list.txt
+			systemctl --user enable $SERVICE_NAME@$SERVER_INSTANCE_ADD.service
 		fi
-		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Add server instance) Server instance $SERVER_INSTANCE successfully added." | tee -a "$LOG_SCRIPT"
+		systemctl --user daemon-reload
+		if [ -f "$WINE_PREFIX_GAME_EXE" ]; then
+			read -p "Server instance $SERVER_INSTANCE_ADD added successfully. Do you want to start it? (y/n): " START_SERVER_INSTANCE_ADD
+			if [[ "$START_SERVER_INSTANCE_ADD" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+				if [[ "$SERVER_INSTANCE_ADD_TMPFS" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+					systemctl --user start $SERVICE_NAME-tmpfs@$SERVER_INSTANCE_ADD.service
+				else
+					systemctl --user start $SERVICE_NAME@$SERVER_INSTANCE_ADD.service
+				fi
+			fi
+		fi
+		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Add server instance) Server instance $SERVER_INSTANCE_ADD added successfully." | tee -a "$LOG_SCRIPT"
 	else
 		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Add server instance) User canceled adding new server instance." | tee -a "$LOG_SCRIPT"
 	fi
@@ -228,20 +239,52 @@ script_remove_server() {
 	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Remove server instance) User started removal of server instance." | tee -a "$LOG_SCRIPT"
 	read -p "Are you sure you want to remove a server instance? (y/n): " REMOVE_SERVER_INSTANCE
 	if [[ "$REMOVE_SERVER_INSTANCE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-		echo ""
-		echo "List of current servers:"
-		cat $CONFIG_DIR/$SERVICE_NAME-server-list.txt
-		echo ""
-		read -p "Specify your server instance (Single digit numbers must have a 0 before them. Example: 07): " SERVER_INSTANCE
-		sed -e "s/$SERVICE@$SERVER_INSTANCE.service//g" -i $CONFIG_DIR/$SERVICE_NAME-server-list.txt
-		sed '/^$/d' -i $CONFIG_DIR/$SERVICE_NAME-server-list.txt
-		systemctl --user disable $SERVICE@$SERVER_INSTANCE.service
-		echo ""
-		read -p "Server instance $SERVER_INSTANCE removed successfully. Do you want to stop it? (y/n): " STOP_SERVER_INSTANCE
-		if [[ "$STOP_SERVER_INSTANCE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-			systemctl --user stop $SERVICE@$SERVER_INSTANCE.service
-		fi
-		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Remove server instance) Server instance $SERVER_INSTANCE successfully removed." | tee -a "$LOG_SCRIPT"
+		IFS=","
+		for SERVER_SERVICE in $(cat $CONFIG_DIR/$SERVICE_NAME-server-list.txt | tr "\\n" "," | sed 's/,$//'); do
+			SERVER_INSTANCE_LIST=("$SERVER_SERVICE" "${SERVER_INSTANCE_LIST[@]}")
+		done
+		SERVER_INSTANCE_LIST=("Cancel" "${SERVER_INSTANCE_LIST[@]}")
+		select SERVER_INSTANCE in "${SERVER_INSTANCE_LIST[@]}"; do
+			SERVER_INSTANCE_REMOVE=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
+			INSTANCE_FOLDERS=(server_$SERVER_INSTANCE_REMOVE userdb_$SERVER_INSTANCE_REMOVE workshop_$SERVER_INSTANCE_REMOVE backups_$SERVER_INSTANCE_REMOVE cache_$SERVER_INSTANCE_REMOVE Logs_$SERVER_INSTANCE_REMOVE)
+			if [[ "$SERVER_INSTANCE_REMOVE" == "Cancel" ]]; then
+				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Remove server instance) User canceled removal of server instance." | tee -a "$LOG_SCRIPT"
+				break
+			fi
+			sed -e "s/$SERVER_INSTANCE//g" -i $CONFIG_DIR/$SERVICE_NAME-server-list.txt
+			sed '/^$/d' -i $CONFIG_DIR/$SERVICE_NAME-server-list.txt
+			if [ -d "/srv/$SERVICE_NAME/.config/systemd/user/$SERVER_INSTANCE.d" ]; then
+				rm -rf /srv/$SERVICE_NAME/.config/systemd/user/$SERVER_INSTANCE.d
+			fi
+			for SERVER_SERVICE in $(cat $CONFIG_DIR/$SERVICE_NAME-server-list.txt | grep tmpfs | tr "\\n" "," | sed 's/,$//'); do
+				SERVER_TMPFS_LIST=("$SERVER_SERVICE" "${SERVER_TMPFS_LIST[@]}")
+			done
+			if [ "${#SERVER_TMPFS_LIST[@]}" -eq "0" ]; then
+				systemctl --user disable $SERVICE_NAME-sync-tmpfs.service
+			fi
+			systemctl --user disable $SERVER_INSTANCE
+			read -p "Server instance $SERVER_INSTANCE removed successfully. Do you want to stop it? (y/n): " STOP_SERVER_INSTANCE
+			if [[ "$STOP_SERVER_INSTANCE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+				systemctl --user stop $SERVER_INSTANCE
+				read -p "Delete the server folder for $SERVER_INSTANCE_REMOVE? (y/n): " DELETE_SERVER_INSTANCE
+				if [[ "$DELETE_SERVER_INSTANCE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+					if [ -f "$SRV_DIR/$WINE_PREFIX_GAME_CONFIG/server_$SERVER_INSTANCE_REMOVE.json" ]; then
+						rm -rf $SRV_DIR/$WINE_PREFIX_GAME_CONFIG/server_$SERVER_INSTANCE_REMOVE.json
+					fi
+					for INSTANCE_FOLDER in ${INSTANCE_FOLDERS[@]}; do
+						if [ -d "$SRV_DIR/$WINE_PREFIX_GAME_CONFIG/$INSTANCE_FOLDER" ]; then
+							rm -rf $SRV_DIR/$WINE_PREFIX_GAME_CONFIG/$INSTANCE_FOLDER
+						fi
+					done
+				fi
+			fi
+			read -p "Delete the backup folder for $SERVER_INSTANCE_REMOVE? (y/n): " DELETE_SERVER_BACKUP
+			if [[ "$DELETE_SERVER_BACKUP" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+				rm -rf $BCKP_DIR/$SERVER_INSTANCE_REMOVE
+			fi
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Remove server instance) Server instance $SERVER_INSTANCE_REMOVE successfully removed." | tee -a "$LOG_SCRIPT"
+			break
+		done
 	else
 		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Remove server instance) User canceled removal of server instance." | tee -a "$LOG_SCRIPT"
 	fi
@@ -272,13 +315,7 @@ script_attach() {
 script_disable_services() {
 	script_logs
 	IFS=","
-	for SERVER_SERVICE in $(systemctl --user list-units -all --no-legend --no-pager --plain $SERVICE_NAME-tmpfs@*.service | awk '{print $1}' | tr "\\n" "," | sed 's/,$//'); do
-		if [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
-			systemctl --user disable $SERVER_SERVICE
-		fi
-	done
-	IFS=","
-	for SERVER_SERVICE in $(systemctl --user list-units -all --no-legend --no-pager --plain $SERVICE_NAME@*.service | awk '{print $1}' | tr "\\n" "," | sed 's/,$//'); do
+	for SERVER_SERVICE in $(systemctl --user list-units -all --no-legend --no-pager --plain $SERVICE_NAME@*.service $SERVICE_NAME-tmpfs@*.service | awk '{print $1}' | tr "\\n" "," | sed 's/,$//'); do
 		if [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
 			systemctl --user disable $SERVER_SERVICE
 		fi
@@ -314,11 +351,6 @@ script_disable_services_manual() {
 # Enable script services by reading the configuration file
 script_enable_services() {
 	script_logs
-	if [[ "$TMPFS_ENABLE" == "1" ]]; then
-		if [[ "$(systemctl --user show -p UnitFileState --value $SERVICE_NAME-sync-tmpfs.service)" == "disabled" ]]; then
-			systemctl --user enable $SERVICE_NAME-sync-tmpfs.service
-		fi
-	fi
 	IFS=","
 	for SERVER_SERVICE in $(cat $CONFIG_DIR/$SERVICE_NAME-server-list.txt | tr "\\n" "," | sed 's/,$//'); do
 		if [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "disabled" ]]; then
@@ -330,6 +362,12 @@ script_enable_services() {
 	fi
 	if [[ "$(systemctl --user show -p UnitFileState --value $SERVICE_NAME-timer-2.timer)" == "disabled" ]]; then
 		systemctl --user enable $SERVICE_NAME-timer-2.timer
+	fi
+	for SERVER_SERVICE in $(cat $CONFIG_DIR/$SERVICE_NAME-server-list.txt | grep tmpfs | tr "\\n" "," | sed 's/,$//'); do
+		SERVER_TMPFS_LIST=("$SERVER_SERVICE" "${SERVER_TMPFS_LIST[@]}")
+	done
+	if [ "${#SERVER_TMPFS_LIST[@]}" -gt "0" ]; then
+		systemctl --user enable $SERVICE_NAME-sync-tmpfs.service
 	fi
 	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Enable services) Services successfully Enabled." | tee -a "$LOG_SCRIPT"
 }
@@ -358,6 +396,7 @@ script_reload_services() {
 	if [[ "$RELOAD_SCRIPT_SERVICES" =~ ^([yY][eE][sS]|[yY])$ ]]; then
 		script_disable_services
 		systemctl --user daemon-reload
+		systemctl --user reset-failed
 		script_enable_services
 		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Reload services) Reload services complete." | tee -a "$LOG_SCRIPT"
 	elif [[ "$RELOAD_SCRIPT_SERVICES" =~ ^([nN][oO]|[nN])$ ]]; then
@@ -387,6 +426,18 @@ script_crash_kill() {
 
 #---------------------------
 
+script_initial_tmpfs_sync() {
+	if [[ "$1" == "start" ]]; then
+		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Initial sync) Starting initial sync to tmpfs service." | tee -a "$LOG_SCRIPT"
+		rsync -aAX --info=progress2 --exclude="$WINE_PREFIX_GAME_CONFIG/*" $SRV_DIR/ $TMPFS_DIR
+		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Initial sync) Sync from disk to tmpfs complete." | tee -a "$LOG_SCRIPT"
+	elif [[ "$1" == "stop" ]]; then
+		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Initial sync) Shuting down initial sync to tmpfs service." | tee -a "$LOG_SCRIPT"
+	fi
+}
+
+#---------------------------
+
 #Pre-start functions to be called by the systemd service
 script_prestart() {
 	script_logs
@@ -397,31 +448,32 @@ script_prestart() {
 	fi
 	if [[ "$DISCORD_START" == "1" ]]; then
 		while IFS="" read -r DISCORD_WEBHOOK || [ -n "$DISCORD_WEBHOOK" ]; do
-			curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server startup for $1 was initialized.\"}" "$DISCORD_WEBHOOK"
+			curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"[$VERSION] [$NAME] (Start) Server startup for $1 was initialized.\"}" "$DISCORD_WEBHOOK"
 		done < $CONFIG_DIR/discord_webhooks.txt
 	fi
 	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server startup for $1 was initialized." | tee -a "$LOG_SCRIPT"
 
-	if [[ "$TMPFS_ENABLE" == "1" ]]; then
+	if [ -f "$SRV_DIR/$WINE_PREFIX_GAME_CONFIG" ]; then
+		mkdir -p "$SRV_DIR/$WINE_PREFIX_GAME_CONFIG"
+	fi
+
+	if [[ "$2" == "tmpfs" ]]; then
 		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Sync from disk to tmpfs for $1 has been initiated." | tee -a "$LOG_SCRIPT"
+		INSTANCE_FOLDERS=(server_$1 userdb_$1 workshop_$1 backups_$1 cache_$1 Logs_$1)
+		if [ -f "$TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG" ]; then
+			mkdir -p "$TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG"
+		fi
+		if [ -f "$SRV_DIR/$WINE_PREFIX_GAME_CONFIG/Config.json" ]; then
+			rsync -aAX --info=progress2 $SRV_DIR/$WINE_PREFIX_GAME_CONFIG/Config.json $TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/Config.json
+		fi
 		if [ -f "$SRV_DIR/$WINE_PREFIX_GAME_CONFIG/server_$1.json" ]; then
 			rsync -aAX --info=progress2 $SRV_DIR/$WINE_PREFIX_GAME_CONFIG/server_$1.json $TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/server_$1.json
 		fi
-		if [ -d "$SRV_DIR/$WINE_PREFIX_GAME_CONFIG/server_$1" ]; then
-			rsync -aAX --info=progress2 $SRV_DIR/$WINE_PREFIX_GAME_CONFIG/server_$1/ $TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/server_$1
-		fi
-		if [ -d "$SRV_DIR/$WINE_PREFIX_GAME_CONFIG/userdb_$1" ]; then
-			rsync -aAX --info=progress2 $SRV_DIR/$WINE_PREFIX_GAME_CONFIG/userdb_$1/ $TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/userdb_$1
-		fi
-		if [ -d "$SRV_DIR/$WINE_PREFIX_GAME_CONFIG/workshop_$1" ]; then
-			rsync -aAX --info=progress2 $SRV_DIR/$WINE_PREFIX_GAME_CONFIG/workshop_$1/ $TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/workshop_$1
-		fi
-		if [ -d "$SRV_DIR/$WINE_PREFIX_GAME_CONFIG/cache_$1" ]; then
-			rsync -aAX --info=progress2 $SRV_DIR/$WINE_PREFIX_GAME_CONFIG/cache_$1/ $TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/cache_$1
-		fi
-		if [ -d "$SRV_DIR/$WINE_PREFIX_GAME_CONFIG/Logs_$1" ]; then
-			rsync -aAX --info=progress2 $SRV_DIR/$WINE_PREFIX_GAME_CONFIG/Logs_$1/ $TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/Logs_$1
-		fi
+		for INSTANCE_FOLDER in ${INSTANCE_FOLDERS[@]}; do
+			if [ -d "$SRV_DIR/$WINE_PREFIX_GAME_CONFIG/$INSTANCE_FOLDER" ]; then
+				rsync -aAX --info=progress2 $SRV_DIR/$WINE_PREFIX_GAME_CONFIG/$INSTANCE_FOLDER/ $TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/$INSTANCE_FOLDER
+			fi
+		done
 		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Sync from disk to tmpfs for $1 complete." | tee -a "$LOG_SCRIPT"
 	fi
 }
@@ -438,7 +490,7 @@ script_poststart() {
 	fi
 	if [[ "$DISCORD_START" == "1" ]]; then
 		while IFS="" read -r DISCORD_WEBHOOK || [ -n "$DISCORD_WEBHOOK" ]; do
-			curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server startup for $1 complete.\"}" "$DISCORD_WEBHOOK"
+			curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"[$VERSION] [$NAME] (Start) Server startup for $1 complete.\"}" "$DISCORD_WEBHOOK"
 		done < $CONFIG_DIR/discord_webhooks.txt
 	fi
 	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server startup for $1 complete." | tee -a "$LOG_SCRIPT"
@@ -456,7 +508,7 @@ script_prestop() {
 	fi
 	if [[ "$DISCORD_STOP" == "1" ]]; then
 		while IFS="" read -r DISCORD_WEBHOOK || [ -n "$DISCORD_WEBHOOK" ]; do
-			curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Stop) Server shutdown for $1 was initialized.\"}" "$DISCORD_WEBHOOK"
+			curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"[$VERSION] [$NAME] (Stop) Server shutdown for $1 was initialized.\"}" "$DISCORD_WEBHOOK"
 		done < $CONFIG_DIR/discord_webhooks.txt
 	fi
 	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Stop) Server shutdown for $1 was initialized." | tee -a "$LOG_SCRIPT"
@@ -477,26 +529,20 @@ script_poststop() {
 		sleep 1
 	done
 
-	if [[ "$TMPFS_ENABLE" == "1" ]]; then
+	if [[ "$2" == "tmpfs" ]]; then
 		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Sync from tmpfs to disk for $1 has been initiated." | tee -a "$LOG_SCRIPT"
-		if [ -f "$TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/server_$1.json" ]; then
-			rsync -aAX --info=progress2 $TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/server_$1.json $SRV_DIR/$WINE_PREFIX_GAME_CONFIG/server_$1.json
+		INSTANCE_FOLDERS=(server_$1 userdb_$1 workshop_$1 backups_$1 cache_$1 Logs_$1)
+		if [ -f "$TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/Config.json" ]; then
+			rsync -aAX --info=progress2 $TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/Config.json $SRV_DIR/$WINE_PREFIX_GAME_CONFIG/Config.json
 		fi
-		if [ -d "$TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/server_$1" ]; then
-			rsync -aAX --info=progress2 $TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/server_$1/ $SRV_DIR/$WINE_PREFIX_GAME_CONFIG/server_$1
+		if [ -f "$TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/Config.json" ]; then
+			rsync -aAX --info=progress2 $TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/Config.json $SRV_DIR/$WINE_PREFIX_GAME_CONFIG/Config.json
 		fi
-		if [ -d "$TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/userdb_$1" ]; then
-			rsync -aAX --info=progress2 $TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/userdb_$1/ $SRV_DIR/$WINE_PREFIX_GAME_CONFIG/userdb_$1
-		fi
-		if [ -d "$TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/workshop_$1" ]; then
-			rsync -aAX --info=progress2 $TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/workshop_$1/ $SRV_DIR/$WINE_PREFIX_GAME_CONFIG/workshop_$1
-		fi
-		if [ -d "$TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/cache_$1" ]; then
-			rsync -aAX --info=progress2 $TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/cache_$1/ $SRV_DIR/$WINE_PREFIX_GAME_CONFIG/cache_$1
-		fi
-		if [ -d "$TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/Logs_$1" ]; then
-			rsync -aAX --info=progress2 $TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/Logs_$1/ $SRV_DIR/$WINE_PREFIX_GAME_CONFIG/Logs_$1
-		fi
+		for INSTANCE_FOLDER in ${INSTANCE_FOLDERS[@]}; do
+			if [ -d "$TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/$INSTANCE_FOLDER" ]; then
+				rsync -aAX --info=progress2 $TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/$INSTANCE_FOLDER/ $SRV_DIR/$WINE_PREFIX_GAME_CONFIG/$INSTANCE_FOLDER
+			fi
+		done
 		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Sync from tmpfs to disk for $1 complete." | tee -a "$LOG_SCRIPT"
 	fi
 
@@ -508,8 +554,16 @@ script_poststop() {
 		rm /tmp/$SERVICE_NAME-$1-tmux.conf
 	fi
 
-	if [ -f "$LOG_DIR_ALL/$SERVICE_NAME-wine-$1.log" ]; then
-		mv $LOG_DIR_ALL/$SERVICE_NAME-wine-$1.log $LOG_DIR/$SERVICE_NAME-wine-$1-$(date +"%Y-%m-%d_%H-%M").log
+	if [ -f "/tmp/$SERVICE_NAME-wine-$1.log" ]; then
+		FILE_WINE_LOG=$SERVICE_NAME-wine-$1
+		if [[ -e $LOG_STRUCTURE/$FILE_WINE_LOG.log || -L $LOG_STRUCTURE/$FILE_WINE_LOG.log ]]; then
+			i=0
+			while [[ -e $LOG_STRUCTURE/${FILE_WINE_LOG}_$i.log || -L $LOG_STRUCTURE/${FILE_WINE_LOG}_$i.log ]]; do
+				let i++
+			done
+			FILE_WINE_LOG=${FILE_WINE_LOG}_$i
+		fi
+		mv /tmp/$SERVICE_NAME-wine-$1.log $LOG_STRUCTURE/$FILE_WINE_LOG.log
 	else
 		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Move wine log) Nothing to move." | tee -a "$LOG_SCRIPT"
 	fi
@@ -521,7 +575,7 @@ script_poststop() {
 	fi
 	if [[ "$DISCORD_STOP" == "1" ]]; then
 		while IFS="" read -r DISCORD_WEBHOOK || [ -n "$DISCORD_WEBHOOK" ]; do
-			curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Stop) Server shutdown for $1 complete.\"}" "$DISCORD_WEBHOOK"
+			curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"[$VERSION] [$NAME] (Stop) Server shutdown for $1 complete.\"}" "$DISCORD_WEBHOOK"
 		done < $CONFIG_DIR/discord_webhooks.txt
 	fi
 	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Stop) Server shutdown for $1 complete." | tee -a "$LOG_SCRIPT"
@@ -532,44 +586,43 @@ script_poststop() {
 #Systemd service sends email if email notifications for crashes enabled
 script_send_notification_crash() {
 	script_logs
-	if [ ! -d "$CRASH_DIR" ]; then
-		mkdir -p "$CRASH_DIR"
+	CRASH_TIME=$(date +"%Y-%m-%d_%H-%M")
+	if [ ! -d "$LOG_STRUCTURE/Server-$1-crash_$CRASH_TIME" ]; then
+		mkdir -p "$LOG_STRUCTURE/Server-$1-crash_$CRASH_TIME"
 	fi
-	
-	systemctl --user status $SERVICE@$1.service > $CRASH_DIR/service_log.txt
-	zip -j $CRASH_DIR/service_logs.zip $CRASH_DIR/service_log.txt
-	zip -j $CRASH_DIR/script_logs.zip $LOG_SCRIPT
-	find "$BCKP_SRC_DIR"/Logs/ -iname *$1* -maxdepth 1 -type f \( ! -iname "chat.txt" \) -mmin -30 -exec zip $CRASH_DIR/game_logs.zip -j {} +
-	zip -j $CRASH_DIR/wine_logs.zip "$(find $LOG_DIR/$SERVICE_NAME-wine-$1*.log -type f -printf '%T@\t%p\n' | sort -t $'\t' -g | tail -n -1 | cut -d $'\t' -f 2-)"
-	rm $CRASH_DIR/service_log.txt
-	
+
+	if [[ "$(systemctl --user show -p UnitFileState --value $SERVICE_NAME-tmpfs@$1.service)" == "enabled" ]]; then
+		systemctl --user status $SERVICE_NAME-tmpfs@$1.service > $LOG_STRUCTURE/Server-$1-crash_$CRASH_TIME/service_log.txt
+		find "$TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/Logs_$1/" -maxdepth 1 -type f \( ! -iname "chat.txt" \) -mmin -30 -exec zip $LOG_STRUCTURE/Server-$1-crash_$CRASH_TIME/game_logs.zip -j {} +
+	elif [[ "$(systemctl --user show -p UnitFileState --value $SERVICE_NAME@$1.service)" == "enabled" ]]; then
+		systemctl --user status $SERVICE_NAME@$1.service > $LOG_STRUCTURE/Server-$1-crash_$CRASH_TIME/service_log.txt
+		find "$SRV_DIR/$WINE_PREFIX_GAME_CONFIG/Logs_$1/" -maxdepth 1 -type f \( ! -iname "chat.txt" \) -mmin -30 -exec zip $LOG_STRUCTURE/Server-$1-crash_$CRASH_TIME/game_logs.zip -j {} +
+	fi
+
+	zip -j $LOG_STRUCTURE/Server-$1-crash_$CRASH_TIME/service_logs.zip $LOG_STRUCTURE/Server-$1-crash_$CRASH_TIME/service_log.txt
+	zip -j $LOG_STRUCTURE/Server-$1-crash_$CRASH_TIME/script_logs.zip $LOG_SCRIPT
+	zip -j $LOG_STRUCTURE/Server-$1-crash_$CRASH_TIME/wine_logs.zip "$(find $LOG_STRUCTURE/$SERVICE_NAME-wine-$1*.log -type f -printf '%T@\t%p\n' | sort -t $'\t' -g | tail -n -1 | cut -d $'\t' -f 2-)"
+	rm $LOG_STRUCTURE/Server-$1-crash_$CRASH_TIME/service_log.txt
+
 	if [[ "$EMAIL_CRASH" == "1" ]]; then
-		mail -a $CRASH_DIR/service_logs.zip -a $CRASH_DIR/script_logs.zip -a $CRASH_DIR/game_logs.zip -a $CRASH_DIR/wine_logs.zip -r "$EMAIL_SENDER ($NAME $SERVICE_NAME)" -s "Notification: Crash" $EMAIL_RECIPIENT <<- EOF
+		mail -a $LOG_STRUCTURE/Server-$1-crash_$CRASH_TIME/service_logs.zip -a $LOG_STRUCTURE/Server-$1-crash_$CRASH_TIME/script_logs.zip -a $LOG_STRUCTURE/Server-$1-crash_$CRASH_TIME/game_logs.zip -a $LOG_STRUCTURE/Server-$1-crash_$CRASH_TIME/wine_logs.zip -r "$EMAIL_SENDER ($NAME $SERVICE_NAME)" -s "Notification: Server $1 crash" $EMAIL_RECIPIENT <<- EOF
 		The $NAME server $1 crashed 3 times in the last 5 minutes. Automatic restart is disabled and the server is inactive. Please check the logs for more information.
-		
+
 		Attachment contents:
 		service_logs.zip - Logs from the systemd service
 		script_logs.zip - Logs from the script
 		game_logs.zip - Logs from the game
 		wine_logs.zip - Logs from the wine compatibility layer
-		
-		ONLY SEND game_logs.zip TO THE DEVS IF NEED BE! DON NOT SEND OTHER ARCHIVES!
-		
-		Contact the script developer 7thCore on discord for help regarding any problems the script may have caused.
 		EOF
 	fi
-	
+
 	if [[ "$DISCORD_CRASH" == "1" ]]; then
 		while IFS="" read -r DISCORD_WEBHOOK || [ -n "$DISCORD_WEBHOOK" ]; do
-			curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Crash) The server crashed 3 times in the last 5 minutes. Automatic restart is disabled and the server is inactive. Please review your logs located in $CRASH_DIR.\"}" "$DISCORD_WEBHOOK"
+			curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"[$VERSION] [$NAME] (Crash) Server $1 crashed 3 times in the last 5 minutes. Automatic restart is disabled and the server is inactive. Please review your logs located in $LOG_STRUCTURE/Server-$1-crash_$CRASH_TIME.\"}" "$DISCORD_WEBHOOK"
 		done < $CONFIG_DIR/discord_webhooks.txt
 	fi
-	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Crash) Server crashed. Please review your logs located in $CRASH_DIR." | tee -a "$LOG_SCRIPT"
-	
-	touch /tmp/$(id -u $SERVICE_NAME).crash
+	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Crash) Server $1 crashed. Please review your logs located in $LOG_STRUCTURE/Server-$1-crash_$CRASH_TIME." | tee -a "$LOG_SCRIPT"
 }
-
-
 
 #---------------------------
 
@@ -577,32 +630,32 @@ script_send_notification_crash() {
 script_save() {
 	script_logs
 	IFS=","
-	for SERVER_SERVICE in $(systemctl --user list-units -all --no-legend --no-pager --plain $SERVICE@*.service | awk '{print $1}' | tr "\\n" "," | sed 's/,$//'); do
-		export SERVER_NUMBER=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
-		if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Save) Save game to disk for server $SERVER_NUMBER has been initiated." | tee -a "$LOG_SCRIPT"
-			( sleep 5 && tmux -L $SERVICE_NAME-$SERVER_NUMBER-tmux.sock send-keys -t $NAME.0 'save' ENTER ) &
+	for SERVER_SERVICE in $(systemctl --user list-units -all --no-legend --no-pager --plain $SERVICE_NAME@*.service $SERVICE_NAME-tmpfs@*.service | awk '{print $1}' | tr "\\n" "," | sed 's/,$//'); do
+		export SERVER_INSTANCE=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
+		if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Save) Save game to disk for server $SERVER_INSTANCE has been initiated." | tee -a "$LOG_SCRIPT"
+			( sleep 5 && tmux -L $SERVICE_NAME-$SERVER_INSTANCE-tmux.sock send-keys -t $NAME.0 'save' ENTER ) &
 			timeout $TIMEOUT_SAVE /bin/bash -c '
 			while read line; do
 				if [[ "$line" == *"[Server]: Save completed."* ]] && [[ "$line" != *"[All]:"* ]]; then
-					echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Save) Save game to disk for server $SERVER_NUMBER has been completed." | tee -a "$LOG_SCRIPT"
+					echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Save) Save game to disk for server $SERVER_INSTANCE has been completed." | tee -a "$LOG_SCRIPT"
 					break
 				elif [[ "$line" == *"INFO: Galaxy is already saving!"* ]] && [[ "$line" != *"[All]:"* ]]; then
 					exit 7
 					break
 				else
-					echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Save) Save game to disk for server $SERVER_NUMBER is in progress. Please wait..."
+					echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Save) Save game to disk for server $SERVER_INSTANCE is in progress. Please wait..."
 				fi
-			done < <(tail -n1 -f /tmp/$SERVICE_NAME-$SERVICE_NAME-$SERVER_NUMBER-tmux.log)'
+			done < <(tail -n1 -f /tmp/$SERVICE_NAME-$SERVICE_NAME-$SERVER_INSTANCE-tmux.log)'
 			EXIT_CODE="$?"
 			if [[ "$EXIT_CODE" == "124" ]]; then
-				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Save) Save time limit for server $SERVER_NUMBER exceeded."
+				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Save) Save time limit for server $SERVER_INSTANCE exceeded."
 			elif [[ "$EXIT_CODE" == "7" ]]; then
-                echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Save) Save loop on server $SERVER_NUMBER detected. Restarting..." | tee -a "$LOG_SCRIPT"
-                while IFS="" read -r DISCORD_WEBHOOK || [ -n "$DISCORD_WEBHOOK" ]; do
-					curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"Save loop on server $SERVER_NUMBER detected. Restarting...\"}" "$DISCORD_WEBHOOK"
+				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Save) Save loop on server $SERVER_INSTANCE detected. Restarting..." | tee -a "$LOG_SCRIPT"
+				while IFS="" read -r DISCORD_WEBHOOK || [ -n "$DISCORD_WEBHOOK" ]; do
+					curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"Save loop on server $SERVER_INSTANCE detected. Restarting...\"}" "$DISCORD_WEBHOOK"
 				done < $CONFIG_DIR/discord_webhooks.txt
-				script_restart $SERVER_NUMBER
+				script_restart $SERVER_INSTANCE
 			fi
 		fi
 	done
@@ -613,16 +666,28 @@ script_save() {
 #Sync server files from ramdisk to hdd/ssd
 script_sync() {
 	script_logs
-	if [[ "$TMPFS_ENABLE" == "1" ]]; then
-		if [[ "$(systemctl --user show -p ActiveState --value $SERVICE)" == "active" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Sync) Sync from tmpfs to disk has been initiated." | tee -a "$LOG_SCRIPT"
-			rsync -aAX --info=progress2 $TMPFS_DIR/ $SRV_DIR #| sed -e "s/^/$(date +"%Y-%m-%d %H:%M:%S") [$NAME] [INFO] (Sync) Syncing: /" | tee -a "$LOG_SCRIPT"
+	IFS=","
+	for SERVER_SERVICE in $(systemctl --user list-units -all --no-legend --no-pager --plain $SERVICE_NAME-tmpfs@*.service | awk '{print $1}' | tr "\\n" "," | sed 's/,$//'); do
+		SERVER_INSTANCE=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
+		if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" != "active" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Sync) Server $SERVER_INSTANCE is not running." | tee -a "$LOG_SCRIPT"
+		elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Sync) Sync from tmpfs to disk for server $SERVER_INSTANCE has been initiated." | tee -a "$LOG_SCRIPT"
+			/usr/bin/tmux -L $SERVICE_NAME-$SERVER_INSTANCE-tmux.sock send-keys -t $NAME.0 "say Sync from tmpfs to disk has been initiated." ENTER
+			INSTANCE_FOLDERS=(server_$SERVER_INSTANCE userdb_$SERVER_INSTANCE workshop_$SERVER_INSTANCE backups_$SERVER_INSTANCE cache_$SERVER_INSTANCE Logs_$SERVER_INSTANCE)
+			if [ -f "$SRV_DIR/$WINE_PREFIX_GAME_CONFIG/server_$SERVER_INSTANCE.json" ]; then
+				rsync -aAX --info=progress2 $TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/server_$SERVER_INSTANCE.json $SRV_DIR/$WINE_PREFIX_GAME_CONFIG/server_$SERVER_INSTANCE.json
+			fi
+			for INSTANCE_FOLDER in ${INSTANCE_FOLDERS[@]}; do
+				if [ -d "$TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/$INSTANCE_FOLDER" ]; then
+					rsync -aAX --info=progress2 $TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/$INSTANCE_FOLDER/ $SRV_DIR/$WINE_PREFIX_GAME_CONFIG/$INSTANCE_FOLDER
+				fi
+			done
+			/usr/bin/tmux -L $SERVICE_NAME-$SERVER_INSTANCE-tmux.sock send-keys -t $NAME.0 "say Sync from tmpfs to disk has been completed." ENTER
 			sleep 1
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Sync) Sync from tmpfs to disk has been completed." | tee -a "$LOG_SCRIPT"
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Sync) Sync from tmpfs to disk for server $SERVER_INSTANCE has been completed." | tee -a "$LOG_SCRIPT"
 		fi
-	elif [[ "$TMPFS_ENABLE" == "0" ]]; then
-		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Sync) Server does not have tmpfs enabled." | tee -a "$LOG_SCRIPT"
-	fi
+	done
 }
 
 #---------------------------
@@ -630,86 +695,61 @@ script_sync() {
 #Start the server
 script_start() {
 	script_logs
+
+	#Loop until the server is active and output the state of it
+	script_start_loop() {
+		SERVER_INSTANCE_LOOP=$(echo $1 | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
+		while [[ "$(systemctl --user show -p ActiveState --value $1)" == "activating" ]] && [[ "$(systemctl --user show -p UnitFileState --value $1)" == "enabled" ]]; do
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $SERVER_INSTANCE_LOOP is activating. Please wait..." | tee -a "$LOG_SCRIPT"
+			sleep 1
+		done
+		if [[ "$(systemctl --user show -p ActiveState --value $1)" == "active" ]] && [[ "$(systemctl --user show -p UnitFileState --value $1)" == "enabled" ]]; then
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $SERVER_INSTANCE_LOOP has been successfully activated." | tee -a "$LOG_SCRIPT"
+			sleep 1
+		elif [[ "$(systemctl --user show -p ActiveState --value $1)" == "failed" ]] && [[ "$(systemctl --user show -p UnitFileState --value $1)" == "enabled" ]]; then
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $SERVER_INSTANCE_LOOP failed to activate. See systemctl --user status $1 for details." | tee -a "$LOG_SCRIPT"
+			sleep 1
+		fi
+	}
+
 	if [ -z "$1" ]; then
 		IFS=","
-		for SERVER_SERVICE in $(cat $CONFIG_DIR/$SERVICE_NAME-server-list.txt | tr "\\n" "," | sed 's/,$//'); do
-			SERVER_NUMBER=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
-			if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "inactive" ]]; then
-				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $SERVER_NUMBER start initialized." | tee -a "$LOG_SCRIPT"
+		for SERVER_SERVICE in $(systemctl --user list-units -all --no-legend --no-pager --plain $SERVICE_NAME@*.service $SERVICE_NAME-tmpfs@*.service | awk '{print $1}' | tr "\\n" "," | sed 's/,$//'); do
+			SERVER_INSTANCE=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
+			if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "inactive" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $SERVER_INSTANCE start initialized." | tee -a "$LOG_SCRIPT"
 				systemctl --user start $SERVER_SERVICE
-				sleep 1
-				while [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "activating" ]]; do
-					echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $SERVER_NUMBER is activating. Please wait..." | tee -a "$LOG_SCRIPT"
-					sleep 1
-				done
-				if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]]; then
-					echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $SERVER_NUMBER has been successfully activated." | tee -a "$LOG_SCRIPT"
-					sleep 1
-				elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "failed" ]]; then
-					echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $SERVER_NUMBER failed to activate. See systemctl --user status $SERVER_SERVICE for details." | tee -a "$LOG_SCRIPT"
-					sleep 1
-				fi
-			elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]]; then
-				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $SERVER_NUMBER is already running." | tee -a "$LOG_SCRIPT"
-				sleep 1
-			elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "failed" ]]; then
-				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $SERVER_NUMBER is in failed state. See systemctl --user status $SERVER_SERVICE for details." | tee -a "$LOG_SCRIPT"
+				script_start_loop $SERVER_SERVICE
+			elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $SERVER_INSTANCE is already running." | tee -a "$LOG_SCRIPT"
+			elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "failed" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $SERVER_INSTANCE is in failed state. See systemctl --user status $SERVER_SERVICE for details." | tee -a "$LOG_SCRIPT"
 				read -p "Do you still want to start the server? (y/n): " FORCE_START
 				if [[ "$FORCE_START" =~ ^([yY][eE][sS]|[yY])$ ]]; then
 					systemctl --user start $SERVER_SERVICE
-					sleep 1
-					while [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "activating" ]]; do
-						echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $SERVER_NUMBER is activating. Please wait..." | tee -a "$LOG_SCRIPT"
-						sleep 1
-					done
-					if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]]; then
-						echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $SERVER_NUMBER has been successfully activated." | tee -a "$LOG_SCRIPT"
-						sleep 1
-					elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "failed" ]]; then
-						echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $SERVER_NUMBER failed to activate. See systemctl --user status $SERVER_SERVICE for details." | tee -a "$LOG_SCRIPT"
-						sleep 1
-					fi
+					script_start_loop $SERVER_SERVICE
 				fi
 			fi
 		done
 	else
-		if [[ "$(systemctl --user show -p ActiveState --value $SERVICE@$1.service)" == "inactive" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $1 start initialized." | tee -a "$LOG_SCRIPT"
-			systemctl --user start $SERVICE@$1.service
-			sleep 1
-			while [[ "$(systemctl --user show -p ActiveState --value $SERVICE@$1.service)" == "activating" ]]; do
-				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $1 is activating. Please wait..." | tee -a "$LOG_SCRIPT"
-				sleep 1
-			done
-			if [[ "$(systemctl --user show -p ActiveState --value $SERVICE@$1.service)" == "active" ]]; then
-				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $1 has been successfully activated." | tee -a "$LOG_SCRIPT"
-				sleep 1
-			elif [[ "$(systemctl --user show -p ActiveState --value $SERVICE@$1.service)" == "failed" ]]; then
-				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $1 failed to activate. See systemctl --user status $SERVICE@$1.service for details." | tee -a "$LOG_SCRIPT"
-				sleep 1
-			fi
-		elif [[ "$(systemctl --user show -p ActiveState --value $SERVICE@$1.service)" == "active" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $1 is already running." | tee -a "$LOG_SCRIPT"
-			sleep 1
-		elif [[ "$(systemctl --user show -p ActiveState --value $SERVICE@$1.service)" == "failed" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $1 is in failed state. See systemctl --user status $SERVICE@$1.service for details." | tee -a "$LOG_SCRIPT"
-			read -p "Do you still want to start the server? (y/n): " FORCE_START
-			if [[ "$FORCE_START" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-				systemctl --user start $SERVICE@$1.service
-				sleep 1
-				while [[ "$(systemctl --user show -p ActiveState --value $SERVICE@$1.service)" == "activating" ]]; do
-					echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $1 is activating. Please wait..." | tee -a "$LOG_SCRIPT"
-					sleep 1
-				done
-				if [[ "$(systemctl --user show -p ActiveState --value $SERVICE@$1.service)" == "active" ]]; then
-					echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $1 has been successfully activated." | tee -a "$LOG_SCRIPT"
-					sleep 1
-				elif [[ "$(systemctl --user show -p ActiveState --value $SERVICE@$1.service)" == "failed" ]]; then
-					echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $1 failed to activate. See systemctl --user status $SERVICE@$1.service for details." | tee -a "$LOG_SCRIPT"
-					sleep 1
+		IFS=","
+		for SERVER_SERVICE in $(systemctl --user list-units -all --no-legend --no-pager --plain $SERVICE_NAME@$1.service $SERVICE_NAME-tmpfs@$1.service | awk '{print $1}' | tr "\\n" "," | sed 's/,$//'); do
+			SERVER_INSTANCE=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
+			if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "inactive" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $1 start initialized." | tee -a "$LOG_SCRIPT"
+				systemctl --user start $SERVER_SERVICE
+				script_start_loop $SERVER_SERVICE
+			elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $1 is already running." | tee -a "$LOG_SCRIPT"
+			elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "failed" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $1 is in failed state. See systemctl --user status $SERVER_SERVICE for details." | tee -a "$LOG_SCRIPT"
+				read -p "Do you still want to start the server? (y/n): " FORCE_START
+				if [[ "$FORCE_START" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+					systemctl --user start $SERVER_SERVICE
+					script_start_loop $SERVER_SERVICE
 				fi
 			fi
-		fi
+		done
 	fi
 }
 
@@ -718,80 +758,55 @@ script_start() {
 #Start the server ignorring failed states
 script_start_ignore_errors() {
 	script_logs
+
+	#Loop until the server is active and output the state of it
+	script_start_ignore_errors_loop() {
+		SERVER_INSTANCE_LOOP=$(echo $1 | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
+		while [[ "$(systemctl --user show -p ActiveState --value $1)" == "activating" ]] && [[ "$(systemctl --user show -p UnitFileState --value $1)" == "enabled" ]]; do
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $SERVER_INSTANCE_LOOP is activating. Please wait..." | tee -a "$LOG_SCRIPT"
+			sleep 1
+		done
+		if [[ "$(systemctl --user show -p ActiveState --value $1)" == "active" ]] && [[ "$(systemctl --user show -p UnitFileState --value $1)" == "enabled" ]]; then
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $SERVER_INSTANCE_LOOP has been successfully activated." | tee -a "$LOG_SCRIPT"
+			sleep 1
+		elif [[ "$(systemctl --user show -p ActiveState --value $1)" == "failed" ]] && [[ "$(systemctl --user show -p UnitFileState --value $1)" == "enabled" ]]; then
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $SERVER_INSTANCE_LOOP failed to activate. See systemctl --user status $1 for details." | tee -a "$LOG_SCRIPT"
+			sleep 1
+		fi
+	}
+
 	if [ -z "$1" ]; then
 		IFS=","
-		for SERVER_SERVICE in $(cat $CONFIG_DIR/$SERVICE_NAME-server-list.txt | tr "\\n" "," | sed 's/,$//'); do
-			SERVER_NUMBER=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
-			if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "inactive" ]]; then
-				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $SERVER_NUMBER start initialized." | tee -a "$LOG_SCRIPT"
+		for SERVER_SERVICE in $(systemctl --user list-units -all --no-legend --no-pager --plain $SERVICE_NAME@*.service $SERVICE_NAME-tmpfs@*.service | awk '{print $1}' | tr "\\n" "," | sed 's/,$//'); do
+			SERVER_INSTANCE=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
+			if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "inactive" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $SERVER_INSTANCE start initialized." | tee -a "$LOG_SCRIPT"
 				systemctl --user start $SERVER_SERVICE
-				sleep 1
-				while [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "activating" ]]; do
-					echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $SERVER_NUMBER is activating. Please wait..." | tee -a "$LOG_SCRIPT"
-					sleep 1
-				done
-				if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]]; then
-					echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $SERVER_NUMBER has been successfully activated." | tee -a "$LOG_SCRIPT"
-					sleep 1
-				elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "failed" ]]; then
-					echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $SERVER_NUMBER failed to activate. See systemctl --user status $SERVER_SERVICE for details." | tee -a "$LOG_SCRIPT"
-					sleep 1
-				fi
-			elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]]; then
-				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $SERVER_NUMBER is already running." | tee -a "$LOG_SCRIPT"
-				sleep 1
-			elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "failed" ]]; then
-				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $SERVER_NUMBER is in failed state. See systemctl --user status $SERVER_SERVICE for details." | tee -a "$LOG_SCRIPT"
+				script_start_ignore_errors_loop $SERVER_SERVICE
+			elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $SERVER_INSTANCE is already running." | tee -a "$LOG_SCRIPT"
+			elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "failed" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $SERVER_INSTANCE is in failed state. See systemctl --user status $SERVER_SERVICE for details." | tee -a "$LOG_SCRIPT"
 				systemctl --user start $SERVER_SERVICE
-				sleep 1
-				while [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "activating" ]]; do
-					echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $SERVER_NUMBER is activating. Please wait..." | tee -a "$LOG_SCRIPT"
-					sleep 1
-				done
-				if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]]; then
-					echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $SERVER_NUMBER has been successfully activated." | tee -a "$LOG_SCRIPT"
-					sleep 1
-				elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "failed" ]]; then
-					echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $SERVER_NUMBER failed to activate. See systemctl --user status $SERVER_SERVICE for details." | tee -a "$LOG_SCRIPT"
-					sleep 1
-				fi
+				script_start_ignore_errors_loop $SERVER_SERVICE
 			fi
 		done
 	else
-		if [[ "$(systemctl --user show -p ActiveState --value $SERVICE@$1.service)" == "inactive" ]]; then
+		IFS=","
+		for SERVER_SERVICE in $(systemctl --user list-units -all --no-legend --no-pager --plain $SERVICE_NAME@$1.service $SERVICE_NAME-tmpfs@$1.service | awk '{print $1}' | tr "\\n" "," | sed 's/,$//'); do
+			SERVER_INSTANCE=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
+			if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "inactive" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
 			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $1 start initialized." | tee -a "$LOG_SCRIPT"
-			systemctl --user start $SERVICE@$1.service
-			sleep 1
-			while [[ "$(systemctl --user show -p ActiveState --value $SERVICE@$1.service)" == "activating" ]]; do
-				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $1 is activating. Please wait..." | tee -a "$LOG_SCRIPT"
-				sleep 1
-			done
-			if [[ "$(systemctl --user show -p ActiveState --value $SERVICE@$1.service)" == "active" ]]; then
-				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $1 has been successfully activated." | tee -a "$LOG_SCRIPT"
-				sleep 1
-			elif [[ "$(systemctl --user show -p ActiveState --value $SERVICE@$1.service)" == "failed" ]]; then
-				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $1 failed to activate. See systemctl --user status $SERVICE@$1.service for details." | tee -a "$LOG_SCRIPT"
-				sleep 1
+			systemctl --user start $SERVER_SERVICE
+			script_start_ignore_errors_loop $SERVER_SERVICE
+			elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $1 is already running." | tee -a "$LOG_SCRIPT"
+			elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "failed" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $1 is in failed state. See systemctl --user status $SERVER_SERVICE for details." | tee -a "$LOG_SCRIPT"
+			systemctl --user start $SERVER_SERVICE
+			script_start_ignore_errors_loop $SERVER_SERVICE
 			fi
-		elif [[ "$(systemctl --user show -p ActiveState --value $SERVICE@$1.service)" == "active" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $1 is already running." | tee -a "$LOG_SCRIPT"
-			sleep 1
-		elif [[ "$(systemctl --user show -p ActiveState --value $SERVICE@$1.service)" == "failed" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $1 is in failed state. See systemctl --user status $SERVICE@$1.service for details." | tee -a "$LOG_SCRIPT"
-			systemctl --user start $SERVICE@$1.service
-			sleep 1
-			while [[ "$(systemctl --user show -p ActiveState --value $SERVICE@$1.service)" == "activating" ]]; do
-				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $1 is activating. Please wait..." | tee -a "$LOG_SCRIPT"
-				sleep 1
-			done
-			if [[ "$(systemctl --user show -p ActiveState --value $SERVICE@$1.service)" == "active" ]]; then
-				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $1 has been successfully activated." | tee -a "$LOG_SCRIPT"
-				sleep 1
-			elif [[ "$(systemctl --user show -p ActiveState --value $SERVICE@$1.service)" == "failed" ]]; then
-				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server $1 failed to activate. See systemctl --user status $SERVICE@$1.service for details." | tee -a "$LOG_SCRIPT"
-				sleep 1
-			fi
-		fi
+		done
 	fi
 }
 
@@ -800,44 +815,45 @@ script_start_ignore_errors() {
 #Stop the server
 script_stop() {
 	script_logs
+
+	#Loop until the server is inactive and output the state of it
+	script_start_ignore_errors_loop() {
+		SERVER_INSTANCE_LOOP=$(echo $1 | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
+		while [[ "$(systemctl --user show -p ActiveState --value $1)" == "deactivating" ]]; do
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Stop) Server $SERVER_INSTANCE_LOOP is deactivating. Please wait..." | tee -a "$LOG_SCRIPT"
+			sleep 1
+		done
+		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Stop) Server $SERVER_INSTANCE_LOOP is deactivated." | tee -a "$LOG_SCRIPT"
+	}
+
 	if [ -z "$1" ]; then
 		IFS=","
-		for SERVER_SERVICE in $(systemctl --user list-units -all --no-legend --no-pager --plain $SERVICE@*.service | awk '{print $1}' | tr "\\n" "," | sed 's/,$//'); do
-			SERVER_NUMBER=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
-			if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "inactive" ]]; then
-				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Stop) Server $SERVER_NUMBER is not running." | tee -a "$LOG_SCRIPT"
-				sleep 1
-			elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "failed" ]]; then
-				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Stop) Server $SERVER_NUMBER is in failed state. Please check logs." | tee -a "$LOG_SCRIPT"
-				sleep 1
-			elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]]; then
-				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Stop) Server $SERVER_NUMBER shutdown in progress." | tee -a "$LOG_SCRIPT"
+		for SERVER_SERVICE in $(systemctl --user list-units -all --no-legend --no-pager --plain $SERVICE_NAME@*.service $SERVICE_NAME-tmpfs@*.service | awk '{print $1}' | tr "\\n" "," | sed 's/,$//'); do
+			SERVER_INSTANCE=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
+			if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "inactive" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Stop) Server $SERVER_INSTANCE is not running." | tee -a "$LOG_SCRIPT"
+			elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "failed" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Stop) Server $SERVER_INSTANCE is in failed state. Please check logs." | tee -a "$LOG_SCRIPT"
+			elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Stop) Server $SERVER_INSTANCE shutdown in progress." | tee -a "$LOG_SCRIPT"
 				systemctl --user stop $SERVER_SERVICE
-				sleep 1
-				while [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "deactivating" ]]; do
-					echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Stop) Server $SERVER_NUMBER is deactivating. Please wait..." | tee -a "$LOG_SCRIPT"
-					sleep 1
-				done
-				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Stop) Server $SERVER_NUMBER is deactivated." | tee -a "$LOG_SCRIPT"
+				script_start_ignore_errors_loop $SERVER_SERVICE
 			fi
 		done
 	else
-		if [[ "$(systemctl --user show -p ActiveState --value $SERVICE@$1.service)" == "inactive" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Stop) Server $1 is not running." | tee -a "$LOG_SCRIPT"
-			sleep 1
-		elif [[ "$(systemctl --user show -p ActiveState --value $SERVICE@$1.service)" == "failed" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Stop)  Server $SERVER_NUMBER is in failed state. Please check logs." | tee -a "$LOG_SCRIPT"
-			sleep 1
-		elif [[ "$(systemctl --user show -p ActiveState --value $SERVICE@$1.service)" == "active" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Stop) Server $1 shutdown in progress." | tee -a "$LOG_SCRIPT"
-			systemctl --user stop $SERVICE@$1.service
-			sleep 1
-			while [[ "$(systemctl --user show -p ActiveState --value $SERVICE@$1.service)" == "deactivating" ]]; do
-				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Stop) Server $1 is deactivating. Please wait..." | tee -a "$LOG_SCRIPT"
-				sleep 1
-			done
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Stop) Server $1 is deactivated." | tee -a "$LOG_SCRIPT"
-		fi
+		IFS=","
+		for SERVER_SERVICE in $(systemctl --user list-units -all --no-legend --no-pager --plain $SERVICE_NAME@$1.service $SERVICE_NAME-tmpfs@$1.service | awk '{print $1}' | tr "\\n" "," | sed 's/,$//'); do
+			SERVER_INSTANCE=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
+			if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "inactive" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Stop) Server $SERVER_INSTANCE is not running." | tee -a "$LOG_SCRIPT"
+			elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "failed" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Stop) Server $SERVER_INSTANCE is in failed state. Please check logs." | tee -a "$LOG_SCRIPT"
+			elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Stop) Server $SERVER_INSTANCE shutdown in progress." | tee -a "$LOG_SCRIPT"
+				systemctl --user stop $SERVER_SERVICE
+				script_start_ignore_errors_loop $SERVER_SERVICE
+			fi
+		done
 	fi
 }
 
@@ -848,52 +864,42 @@ script_restart() {
 	script_logs
 	if [ -z "$1" ]; then
 		IFS=","
-		for SERVER_SERVICE in $(systemctl --user list-units -all --no-legend --no-pager --plain $SERVICE@*.service | awk '{print $1}' | tr "\\n" "," | sed 's/,$//'); do
-			SERVER_NUMBER=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
-			if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "inactive" ]]; then
-				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Restart) Server $SERVER_NUMBER is not running. Use -start to start the server." | tee -a "$LOG_SCRIPT"
-			elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "activating" ]]; then
-				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Restart) Server $SERVER_NUMBER is activating. Aborting restart." | tee -a "$LOG_SCRIPT"
-			elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "deactivating" ]]; then
-				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Restart) Server $SERVER_NUMBER is in deactivating. Aborting restart." | tee -a "$LOG_SCRIPT"
-			elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]]; then
-				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Restart) Server $SERVER_NUMBER is going to restart in 15-30 seconds, please wait..." | tee -a "$LOG_SCRIPT"
+		for SERVER_SERVICE in $(systemctl --user list-units -all --no-legend --no-pager --plain $SERVICE_NAME@*.service $SERVICE_NAME-tmpfs@*.service | awk '{print $1}' | tr "\\n" "," | sed 's/,$//'); do
+			SERVER_INSTANCE=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
+			if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "inactive" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Restart) Server $SERVER_INSTANCE is not running. Execute $SERVICE_NAME-script start to start the server." | tee -a "$LOG_SCRIPT"
+			elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "activating" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Restart) Server $SERVER_INSTANCE is activating. Aborting restart." | tee -a "$LOG_SCRIPT"
+			elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "deactivating" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Restart) Server $SERVER_INSTANCE is in deactivating. Aborting restart." | tee -a "$LOG_SCRIPT"
+			elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Restart) Server $SERVER_INSTANCE is going to restart in 15-30 seconds, please wait..." | tee -a "$LOG_SCRIPT"
 				sleep 1
-				script_stop $SERVER_NUMBER
+				script_stop $SERVER_INSTANCE
 				sleep 1
-				script_start $SERVER_NUMBER
+				script_start $SERVER_INSTANCE
 				sleep 1
 			fi
 		done
 	else
-		if [[ "$(systemctl --user show -p ActiveState --value $SERVICE@$1.service)" == "inactive" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Restart) Server $1 is not running. Use -start to start the server." | tee -a "$LOG_SCRIPT"
-		elif [[ "$(systemctl --user show -p ActiveState --value $SERVICE@$1.service)" == "activating" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Restart) Server $1 is activating. Aborting restart." | tee -a "$LOG_SCRIPT"
-		elif [[ "$(systemctl --user show -p ActiveState --value $SERVICE@$1.service)" == "deactivating" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Restart) Server $1 is in deactivating. Aborting restart." | tee -a "$LOG_SCRIPT"
-		elif [[ "$(systemctl --user show -p ActiveState --value $SERVICE@$1.service)" == "active" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Restart) Server $1 is going to restart in 15-30 seconds, please wait..." | tee -a "$LOG_SCRIPT"
-			sleep 1
-			script_stop $1
-			sleep 1
-			script_start $1
-			sleep 1
-		fi
+		IFS=","
+		for SERVER_SERVICE in $(systemctl --user list-units -all --no-legend --no-pager --plain $SERVICE_NAME@$1.service $SERVICE_NAME-tmpfs@$1.service | awk '{print $1}' | tr "\\n" "," | sed 's/,$//'); do
+			if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "inactive" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Restart) Server $SERVER_INSTANCE is not running. Execute $SERVICE_NAME-script start to start the server." | tee -a "$LOG_SCRIPT"
+			elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "activating" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Restart) Server $SERVER_INSTANCE is activating. Aborting restart." | tee -a "$LOG_SCRIPT"
+			elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "deactivating" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Restart) Server $SERVER_INSTANCE is in deactivating. Aborting restart." | tee -a "$LOG_SCRIPT"
+			elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Restart) Server $SERVER_INSTANCE is going to restart in 15-30 seconds, please wait..." | tee -a "$LOG_SCRIPT"
+				sleep 1
+				script_stop $SERVER_INSTANCE
+				sleep 1
+				script_start $SERVER_INSTANCE
+				sleep 1
+			fi
+		done
 	fi
-}
-
-#---------------------------
-
-#Deletes old backups
-script_deloldbackup() {
-	script_logs
-	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Delete old backup) Deleting old backups: $BCKP_DELOLD days old." | tee -a "$LOG_SCRIPT"
-	# Delete old backups
-	find $BCKP_DIR/* -type f -mtime +$BCKP_DELOLD -delete
-	# Delete empty folders
-	find $BCKP_DIR/ -type d -empty -delete
-	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Delete old backup) Deleting old backups complete." | tee -a "$LOG_SCRIPT"
 }
 
 #---------------------------
@@ -901,78 +907,61 @@ script_deloldbackup() {
 #Creates a backup of the server
 script_backup() {
 	script_logs
+
 	#If there is not a folder for today, create one
-	if [ ! -d "$BCKP_DEST" ]; then
-		mkdir -p $BCKP_DEST
-	fi
+	script_backup_create_folder() {
+		if [ ! -d "$BCKP_DIR/$1/$BCKP_STRUCTURE" ]; then
+			mkdir -p $BCKP_DIR/$1/$BCKP_STRUCTURE
+		fi
+	}
+
 	#Backup source to destination
-	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Backup) Backup has been initiated." | tee -a "$LOG_SCRIPT"
-	cd "$BCKP_SRC_DIR"
-	tar -cpvzf $BCKP_DEST/$(date +"%Y%m%d%H%M").tar.gz $BCKP_SRC #| sed -e "s/^/$(date +"%Y-%m-%d %H:%M:%S") [$NAME] [INFO] (Backup) Compressing: /" | tee -a "$LOG_SCRIPT"
-	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Backup) Backup complete." | tee -a "$LOG_SCRIPT"
-}
-
-#---------------------------
-
-#Automaticly backs up the server and deletes old backups
-script_autobackup() {
-	script_logs
-	RUNNING_SERVERS="0"
-	IFS=","
-	for SERVER_SERVICE in $(systemctl --user list-units -all --no-legend --no-pager --plain $SERVICE@*.service | awk '{print $1}' | tr "\\n" "," | sed 's/,$//'); do
-		SERVER_NUMBER=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
-		if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" != "active" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Autobackup) Server $SERVER_NUMBER is not running." | tee -a "$LOG_SCRIPT"
-		elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]]; then
-			RUNNING_SERVERS=$(($RUNNING_SERVERS + 1))
+	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Backup) Backup has been initiated." | tee -a  "$LOG_SCRIPT"
+	for SERVER_SERVICE in $(systemctl --user list-units -all --no-legend --no-pager --plain $SERVICE_NAME-tmpfs@*.service | awk '{print $1}' | tr "\\n" "," | sed 's/,$//'); do
+		SERVER_INSTANCE=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
+		if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" != "active" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Autobackup) Server $SERVER_INSTANCE is not running." | tee -a "$LOG_SCRIPT"
+		elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+			/usr/bin/tmux -L $SERVICE_NAME-$SERVER_INSTANCE-tmux.sock send-keys -t $NAME.0 "say Server backup in progress." ENTER
+			script_backup_create_folder $SERVER_INSTANCE
+			cd "$TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG"
+			tar -cpvzf $BCKP_DIR/$SERVER_INSTANCE/$BCKP_STRUCTURE/$(date +"%Y%m%d%H%M")_$SERVER_INSTANCE.tar.gz $TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/*_$SERVER_INSTANCE
+			/usr/bin/tmux -L $SERVICE_NAME-$SERVER_INSTANCE-tmux.sock send-keys -t $NAME.0 "say Server backup complete." ENTER
 		fi
 	done
-	
-	if [ $RUNNING_SERVERS -gt "0" ]; then
-		sleep 1
-		script_backup
-		sleep 1
-		script_deloldbackup
-	fi
+	for SERVER_SERVICE in $(systemctl --user list-units -all --no-legend --no-pager --plain $SERVICE_NAME@*.service | awk '{print $1}' | tr "\\n" "," | sed 's/,$//'); do
+		SERVER_INSTANCE=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
+		if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" != "active" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Autobackup) Server $SERVER_INSTANCE is not running." | tee -a "$LOG_SCRIPT"
+		elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
+			/usr/bin/tmux -L $SERVICE_NAME-$SERVER_INSTANCE-tmux.sock send-keys -t $NAME.0 "say Server backup in progress." ENTER
+			script_backup_create_folder $SERVER_INSTANCE
+			cd "$SRV_DIR/$WINE_PREFIX_GAME_CONFIG"
+			tar -cpvzf $BCKP_DIR/$SERVER_INSTANCE/$BCKP_STRUCTURE/$(date +"%Y%m%d%H%M")_$SERVER_INSTANCE.tar.gz $SRV_DIR/$WINE_PREFIX_GAME_CONFIG/*_$SERVER_INSTANCE
+			/usr/bin/tmux -L $SERVICE_NAME-$SERVER_INSTANCE-tmux.sock send-keys -t $NAME.0 "say Server backup complete." ENTER
+		fi
+	done
+	script_deloldbackup
+	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Backup) Backup complete." | tee -a  "$LOG_SCRIPT"
 }
 
 #---------------------------
 
-#Delete server save
-script_delete_save() {
-	script_logs
-	if [ -z "$1" ]; then
-		echo "You must specify a server to delete it's save."
-	else
-		if [[ "$(systemctl --user show -p ActiveState --value $SERVICE@$1.service)" != "active" ]] && [[ "$(systemctl --user show -p ActiveState --value $SERVICE@$1.service)" != "activating" ]] && [[ "$(systemctl --user show -p ActiveState --value $SERVICE@$1.service)" != "deactivating" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Delete save) WARNING! This will delete the save for server $1." | tee -a "$LOG_SCRIPT"
-			read -p "Are you sure you want to delete the server's save game? (y/n): " DELETE_SERVER_SAVE
-			if [[ "$DELETE_SERVER_SAVE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-				read -p "Do you also want to delete the server_$1.json file? (y/n): " DELETE_SERVER_SETTINGS
-				if [[ "$DELETE_SERVER_SETTINGS" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-					if [[ "$TMPFS_ENABLE" == "1" ]]; then
-						cd "$TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG"
-						rm -rf server_$1.json server_$1 userdb_$1 workshop_$1 cache_$1 Logs_$1
-					fi
-					cd "$SRV_DIR/$WINE_PREFIX_GAME_CONFIG"
-					rm -rf server_$1.json server_$1 userdb_$1 workshop_$1
-					echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Delete save) Deletion of save files for server $1 complete." | tee -a "$LOG_SCRIPT"
-				elif [[ "$DELETE_SERVER_SETTINGS" =~ ^([nN][oO]|[nN])$ ]]; then
-					if [[ "$TMPFS_ENABLE" == "1" ]]; then
-						cd "$TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG"
-						rm -rf server_$1 userdb_$1 workshop_$1 cache_$1 Logs_$1
-					fi
-					cd "$SRV_DIR/$WINE_PREFIX_GAME_CONFIG"
-					rm -rf server_$1 userdb_$1 workshop_$1
-					echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Delete save) Deletion of save files for server $1 complete. The server_$1.json file is untouched." | tee -a "$LOG_SCRIPT"
-				fi
-			elif [[ "$DELETE_SERVER_SAVE" =~ ^([nN][oO]|[nN])$ ]]; then
-				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Delete save) Save deletion for server $1 canceled." | tee -a "$LOG_SCRIPT"
-			fi
-		elif [[ "$(systemctl --user show -p ActiveState --value $SERVICE)" == "active" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Clear save) Server $1 is running. Aborting..." | tee -a "$LOG_SCRIPT"
+#Get steam credentials for script operations
+script_steamcmd_credentials() {
+	while [[ "$STEAMCMDSUCCESS" != "0" ]]; do
+		read -p "Enter your Steam username: " STEAMCMD_UID
+		echo ""
+		read -p "Enter your Steam password: " STEAMCMD_PSW
+		steamcmd +login $STEAMCMD_UID $STEAMCMD_PSW +quit
+		STEAMCMDSUCCESS=$?
+		if [[ "$STEAMCMDSUCCESS" == "0" ]]; then
+			echo "Steam login for $STEAMCMD_UID: SUCCEDED!"
+		elif [[ "$STEAMCMDSUCCESS" != "0" ]]; then
+			echo "Steam login for $STEAMCMD_UID: FAILED!"
+			echo "Please try again."
 		fi
-	fi
+	done
 }
 
 #---------------------------
@@ -980,76 +969,87 @@ script_delete_save() {
 #Change the steam branch of the app
 script_change_branch() {
 	script_logs
-	if [[ "$(systemctl --user show -p ActiveState --value $SERVICE)" != "active" ]] && [[ "$(systemctl --user show -p ActiveState --value $SERVICE)" != "activating" ]] && [[ "$(systemctl --user show -p ActiveState --value $SERVICE)" != "deactivating" ]]; then
-		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Change branch) Server branch change initiated. Waiting on user configuration." | tee -a "$LOG_SCRIPT"
-		read -p "Are you sure you want to change the server branch? (y/n): " CHANGE_SERVER_BRANCH
-		if [[ "$CHANGE_SERVER_BRANCH" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-			if [[ "$TMPFS_ENABLE" == "1" ]]; then
-				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Change branch) Clearing TmpFs directory and game installation." | tee -a "$LOG_SCRIPT"
-				rm -rf $TMPFS_DIR
-				rm -rf $SRV_DIR/$WINE_PREFIX_GAME_DIR/*
-			elif [[ "$TMPFS_ENABLE" == "0" ]]; then
-				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Change branch) Clearing game installation." | tee -a "$LOG_SCRIPT"
-				rm -rf $SRV_DIR/$WINE_PREFIX_GAME_DIR/*
-			fi
-			if [[ "$STEAMCMD_BETA_BRANCH" == "1" ]]; then
-				PUBLIC_BRANCH="0"
-			elif [[ "$STEAMCMD_BETA_BRANCH" == "0" ]]; then
-				PUBLIC_BRANCH="1"
-			fi
-			echo "Current configuration:"
-			echo 'Public branch: '"$PUBLIC_BRANCH"
-			echo 'Beta branch enabled: '"$STEAMCMD_BETA_BRANCH"
-			echo 'Beta branch name: '"$STEAMCMD_BETA_BRANCH_NAME"
-			echo ""
-			read -p "Public branch or beta branch? (public/beta): " SET_BRANCH_STATE
-			echo ""
-			if [[ "$SET_BRANCH_STATE" =~ ^([bB][eE][tT][aA]|[bB])$ ]]; then
-				STEAMCMD_BETA_BRANCH="1"
-				echo "Look up beta branch names at https://steamdb.info/app/363360/depots/"
-				echo "Name example: ir_0.2.8"
-				read -p "Enter beta branch name: " STEAMCMD_BETA_BRANCH_NAME
-			elif [[ "$SET_BRANCH_STATE" =~ ^([pP][uU][bB][lL][iI][cC]|[pP])$ ]]; then
-				STEAMCMD_BETA_BRANCH="0"
-				STEAMCMD_BETA_BRANCH_NAME="none"
-			fi
-			sed -i '/steamcmd_beta_branch/d' $CONFIG_DIR/$SERVICE_NAME-steam.conf
-			sed -i '/steamcmd_beta_branch_name/d' $CONFIG_DIR/$SERVICE_NAME-steam.conf
-			echo 'steamcmd_beta_branch='"$STEAMCMD_BETA_BRANCH" >> $CONFIG_DIR/$SERVICE_NAME-steam.conf
-			echo 'steamcmd_beta_branch_name='"$STEAMCMD_BETA_BRANCH_NAME" >> $CONFIG_DIR/$SERVICE_NAME-steam.conf
-			steamcmd +login anonymous +app_info_update 1 +app_info_print $APPID +quit > /srv/$SERVICE_NAME/updates/steam_app_data.txt
+	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Change branch) Server branch change initiated. Waiting on user configuration." | tee -a "$LOG_SCRIPT"
+	if [[ "$STEAMCMD_UID" == "disabled" ]] && [[ "$STEAMCMD_PSW" == "disabled" ]]; then
+		script_steamcmd_credentials
+	fi
 
-			if [[ "$STEAMCMD_BETA_BRANCH" == "0" ]]; then
-				INSTALLED_BUILDID=$(cat /srv/$SERVICE_NAME/updates/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"public\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"buildid\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
-				echo "$INSTALLED_BUILDID" > $UPDATE_DIR/installed.buildid
-
-				INSTALLED_TIME=$(cat /srv/$SERVICE_NAME/updates/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"public\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"timeupdated\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
-				echo "$INSTALLED_TIME" > $UPDATE_DIR/installed.timeupdated
-
-				if [[ "$STEAMGUARD_CLI" == "1" ]]; then
-					steamcmd +@sSteamCmdForcePlatformType windows +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +login $STEAMCMD_UID $STEAMCMD_PSW $(steamguard) +app_update $APPID validate +quit
-				else
-					steamcmd +@sSteamCmdForcePlatformType windows +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +login $STEAMCMD_UID $STEAMCMD_PSW +app_update $APPID validate +quit
-				fi
-			elif [[ "$STEAMCMD_BETA_BRANCH" == "1" ]]; then
-				INSTALLED_BUILDID=$(cat /srv/$SERVICE_NAME/updates/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"$STEAMCMD_BETA_BRANCH_NAME\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"buildid\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
-				echo "$INSTALLED_BUILDID" > $UPDATE_DIR/installed.buildid
-
-				INSTALLED_TIME=$(cat /srv/$SERVICE_NAME/updates/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"$STEAMCMD_BETA_BRANCH_NAME\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"timeupdated\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
-				echo "$INSTALLED_TIME" > $UPDATE_DIR/installed.timeupdated
-
-				if [[ "$STEAMGUARD_CLI" == "1" ]]; then
-					steamcmd +@sSteamCmdForcePlatformType windows +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +login $STEAMCMD_UID $STEAMCMD_PSW $(steamguard) +app_update $APPID -beta $INSTALL_STEAMCMD_BETA_BRANCH_NAME validate +quit
-				else
-					steamcmd +@sSteamCmdForcePlatformType windows +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +login $STEAMCMD_UID $STEAMCMD_PSW +app_update $APPID -beta $STEAMCMD_BETA_BRANCH_NAME validate +quit
-				fi
-			fi
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Change branch) Server branch change complete." | tee -a "$LOG_SCRIPT"
-		elif [[ "$CHANGE_SERVER_BRANCH" =~ ^([nN][oO]|[nN])$ ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Change branch) Server branch change canceled." | tee -a "$LOG_SCRIPT"
+	read -p "Are you sure you want to change the server branch? (y/n): " CHANGE_SERVER_BRANCH
+	if [[ "$CHANGE_SERVER_BRANCH" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+		echo "Current configuration:"
+		echo 'Beta branch enabled: '"$STEAMCMD_BETA_BRANCH"
+		echo 'Beta branch name: '"$STEAMCMD_BETA_BRANCH_NAME"
+		echo ""
+		read -p "Public branch or beta branch? (public/beta): " SET_BRANCH_STATE
+		echo ""
+		if [[ "$SET_BRANCH_STATE" =~ ^([bB][eE][tT][aA]|[bB])$ ]]; then
+			STEAMCMD_BETA_BRANCH="1"
+			echo "Look up beta branch names at https://steamdb.info/app/363360/depots/"
+			echo "Name examples: experimental, ir_0.1.60, ir_0.1.55"
+			read -p "Enter beta branch name: " STEAMCMD_BETA_BRANCH_NAME
+		elif [[ "$SET_BRANCH_STATE" =~ ^([pP][uU][bB][lL][iI][cC]|[pP])$ ]]; then
+			STEAMCMD_BETA_BRANCH="0"
+			STEAMCMD_BETA_BRANCH_NAME="none"
 		fi
-	elif [[ "$(systemctl --user show -p ActiveState --value $SERVICE)" == "active" ]]; then
-		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Change branch) The server is running. Aborting..." | tee -a "$LOG_SCRIPT"
+		sed -i '/steamcmd_beta_branch/d' $CONFIG_DIR/$SERVICE_NAME-steam.conf
+		sed -i '/steamcmd_beta_branch_name/d' $CONFIG_DIR/$SERVICE_NAME-steam.conf
+		echo 'steamcmd_beta_branch='"$STEAMCMD_BETA_BRANCH" >> $CONFIG_DIR/$SERVICE_NAME-steam.conf
+		echo 'steamcmd_beta_branch_name='"$STEAMCMD_BETA_BRANCH_NAME" >> $CONFIG_DIR/$SERVICE_NAME-steam.conf
+		steamcmd +login anonymous +app_info_update 1 +app_info_print $APPID +quit > /srv/$SERVICE_NAME/updates/steam_app_data.txt
+
+		IFS=","
+		for SERVER_SERVICE in $(systemctl --user list-units -all --no-legend --no-pager --plain $SERVICE_NAME@*.service $SERVICE_NAME-tmpfs@*.service | awk '{print $1}' | tr "\\n" "," | sed 's/,$//'); do
+			if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]]; then
+				WAS_ACTIVE_BRANCH=("$SERVER_SERVICE" "${WAS_ACTIVE_BRANCH[@]}")
+			fi
+		done
+		script_stop
+
+		if [[ "$(systemctl --user show -p UnitFileState --value $SERVICE_NAME-sync-tmpfs.service)" == "enabled" ]]; then
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Change branch) Deleting TmpFs content." | tee -a "$LOG_SCRIPT"
+			rm -rf $TMPFS_DIR
+		fi
+		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Change branch) Deleting game installation." | tee -a "$LOG_SCRIPT"
+		rm -rf $SRV_DIR/$WINE_PREFIX_GAME_DIR/*
+
+		if [[ "$STEAMCMD_BETA_BRANCH" == "0" ]]; then
+			INSTALLED_BUILDID=$(cat /srv/$SERVICE_NAME/updates/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"public\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"buildid\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
+			echo "$INSTALLED_BUILDID" > $UPDATE_DIR/installed.buildid
+
+			INSTALLED_TIME=$(cat /srv/$SERVICE_NAME/updates/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"public\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"timeupdated\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
+			echo "$INSTALLED_TIME" > $UPDATE_DIR/installed.timeupdated
+
+			if [[ "$STEAMGUARD_CLI" == "1" ]]; then
+				steamcmd +@sSteamCmdForcePlatformType windows +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +login $STEAMCMD_UID $STEAMCMD_PSW $(steamguard) +app_update $APPID validate +quit
+			else
+				steamcmd +@sSteamCmdForcePlatformType windows +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +login $STEAMCMD_UID $STEAMCMD_PSW +app_update $APPID validate +quit
+			fi
+		elif [[ "$STEAMCMD_BETA_BRANCH" == "1" ]]; then
+			INSTALLED_BUILDID=$(cat /srv/$SERVICE_NAME/updates/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"$STEAMCMD_BETA_BRANCH_NAME\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"buildid\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
+			echo "$INSTALLED_BUILDID" > $UPDATE_DIR/installed.buildid
+
+			INSTALLED_TIME=$(cat /srv/$SERVICE_NAME/updates/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"$STEAMCMD_BETA_BRANCH_NAME\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"timeupdated\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
+			echo "$INSTALLED_TIME" > $UPDATE_DIR/installed.timeupdated
+
+			if [[ "$STEAMGUARD_CLI" == "1" ]]; then
+				steamcmd +@sSteamCmdForcePlatformType windows +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +login $STEAMCMD_UID $STEAMCMD_PSW $(steamguard) +app_update $APPID -beta $INSTALL_STEAMCMD_BETA_BRANCH_NAME validate +quit
+			else
+				steamcmd +@sSteamCmdForcePlatformType windows +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +login $STEAMCMD_UID $STEAMCMD_PSW +app_update $APPID -beta $STEAMCMD_BETA_BRANCH_NAME validate +quit
+			fi
+		fi
+
+		for SERVER_SERVICE in "${WAS_ACTIVE_BRANCH[@]}"; do
+			SERVER_INSTANCE=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
+			if [[ "$UPDATE_IGNORE_FAILED_ACTIVATIONS" == "1" ]]; then
+				script_start_ignore_errors $SERVER_INSTANCE
+			else
+				script_start $SERVER_INSTANCE
+			fi
+		done
+
+		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Change branch) Server branch change complete." | tee -a "$LOG_SCRIPT"
+	elif [[ "$CHANGE_SERVER_BRANCH" =~ ^([nN][oO]|[nN])$ ]]; then
+		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Change branch) Server branch change canceled." | tee -a "$LOG_SCRIPT"
 	fi
 }
 
@@ -1058,83 +1058,65 @@ script_change_branch() {
 #Check for updates. If there are updates available, shut down the server, update it and restart it.
 script_update() {
 	script_logs
-	if [[ "$STEAMCMD_UID" == "disabled" ]] && [[ "$STEAMCMD_PSW" == "disabled" ]]; then
-		while [[ "$STEAMCMDSUCCESS" != "0" ]]; do
-			read -p "Enter your Steam username: " STEAMCMD_UID
-			echo ""
-			read -p "Enter your Steam password: " STEAMCMD_PSW
-			steamcmd +login $STEAMCMD_UID $STEAMCMD_PSW +quit
-			STEAMCMDSUCCESS=$?
-			if [[ "$STEAMCMDSUCCESS" == "0" ]]; then
-				echo "Steam login for $STEAMCMD_UID: SUCCEDED!"
-			elif [[ "$STEAMCMDSUCCESS" != "0" ]]; then
-				echo "Steam login for $STEAMCMD_UID: FAILED!"
-				echo "Please try again."
-			fi
-		done
-	fi
 	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Update) Initializing update check." | tee -a "$LOG_SCRIPT"
+	if [[ "$STEAMCMD_UID" == "disabled" ]] && [[ "$STEAMCMD_PSW" == "disabled" ]]; then
+		script_steamcmd_credentials
+	fi
+
 	if [[ "$STEAMCMD_BETA_BRANCH" == "1" ]]; then
 		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Update) Beta branch enabled. Branch name: $STEAMCMD_BETA_BRANCH_NAME" | tee -a "$LOG_SCRIPT"
 	fi
-	
-	if [ ! -f $UPDATE_DIR/installed.buildid ] ; then
+
+	if [ ! -f $UPDATE_DIR/installed.buildid ]; then
 		touch $UPDATE_DIR/installed.buildid
 		echo "0" > $UPDATE_DIR/installed.buildid
 	fi
-	
-	if [ ! -f $UPDATE_DIR/installed.timeupdated ] ; then
+
+	if [ ! -f $UPDATE_DIR/installed.timeupdated ]; then
 		touch $UPDATE_DIR/installed.timeupdated
 		echo "0" > $UPDATE_DIR/installed.timeupdated
 	fi
-	
+
 	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Update) Removing Steam/appcache/appinfo.vdf" | tee -a "$LOG_SCRIPT"
 	rm -rf "/srv/$SERVICE_NAME/.steam/appcache/appinfo.vdf"
-	
+
 	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Update) Connecting to steam servers." | tee -a "$LOG_SCRIPT"
-	steamcmd +login anonymous +app_info_update 1 +app_info_print $APPID +quit > /srv/$SERVICE_NAME/updates/steam_app_data.txt
-	
+	steamcmd +login anonymous +app_info_update 1 +app_info_print $APPID +quit > $UPDATE_DIR/steam_app_data.txt
+
 	if [[ "$STEAMCMD_BETA_BRANCH" == "0" ]]; then
-		AVAILABLE_BUILDID=$(cat /srv/$SERVICE_NAME/updates/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"public\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"buildid\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
-		AVAILABLE_TIME=$(cat /srv/$SERVICE_NAME/updates/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"public\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"timeupdated\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
+		AVAILABLE_BUILDID=$(cat $UPDATE_DIR/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"public\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"buildid\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
+		AVAILABLE_TIME=$(cat $UPDATE_DIR/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"public\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"timeupdated\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
 	elif [[ "$STEAMCMD_BETA_BRANCH" == "1" ]]; then
-		AVAILABLE_BUILDID=$(cat /srv/$SERVICE_NAME/updates/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"$STEAMCMD_BETA_BRANCH_NAME\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"buildid\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
-		AVAILABLE_TIME=$(cat /srv/$SERVICE_NAME/updates/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"$STEAMCMD_BETA_BRANCH_NAME\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"timeupdated\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
+		AVAILABLE_BUILDID=$(cat $UPDATE_DIR/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"$STEAMCMD_BETA_BRANCH_NAME\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"buildid\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
+		AVAILABLE_TIME=$(cat $UPDATE_DIR/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"$STEAMCMD_BETA_BRANCH_NAME\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"timeupdated\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
 	fi
-	
+
 	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Update) Received application info data." | tee -a "$LOG_SCRIPT"
-	
+
 	INSTALLED_BUILDID=$(cat $UPDATE_DIR/installed.buildid)
 	INSTALLED_TIME=$(cat $UPDATE_DIR/installed.timeupdated)
-	
+
 	if [ "$AVAILABLE_TIME" -gt "$INSTALLED_TIME" ]; then
 		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Update) New update detected." | tee -a "$LOG_SCRIPT"
 		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Update) Installed: BuildID: $INSTALLED_BUILDID, TimeUpdated: $INSTALLED_TIME" | tee -a "$LOG_SCRIPT"
 		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Update) Available: BuildID: $AVAILABLE_BUILDID, TimeUpdated: $AVAILABLE_TIME" | tee -a "$LOG_SCRIPT"
-		
+
 		if [[ "$DISCORD_UPDATE" == "1" ]]; then
 			while IFS="" read -r DISCORD_WEBHOOK || [ -n "$DISCORD_WEBHOOK" ]; do
-				curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Update) New update detected. Installing update.\"}" "$DISCORD_WEBHOOK"
+				curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"[$VERSION] [$NAME] (Update) New update detected. Installing update.\"}" "$DISCORD_WEBHOOK"
 			done < $CONFIG_DIR/discord_webhooks.txt
 		fi
-		
+
 		IFS=","
-		for SERVER_SERVICE in $(systemctl --user list-units -all --no-legend --no-pager --plain $SERVICE@*.service | awk '{print $1}' | tr "\\n" "," | sed 's/,$//'); do
+		for SERVER_SERVICE in $(systemctl --user list-units -all --no-legend --no-pager --plain $SERVICE_NAME@*.service $SERVICE_NAME-tmpfs@*.service | awk '{print $1}' | tr "\\n" "," | sed 's/,$//'); do
 			if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]]; then
-				WAS_ACTIVE=("$SERVER_SERVICE" "${WAS_ACTIVE[@]}")
+				WAS_ACTIVE_UPDATE=("$SERVER_SERVICE" "${WAS_ACTIVE_UPDATE[@]}")
 			fi
 		done
-		sleep 1
 		script_stop
-		sleep 1
-		
-		if [[ "$TMPFS_ENABLE" == "1" ]]; then
-			rsync -aAX --info=progress2 $TMPFS_DIR/ $SRV_DIR
-			rm -rf $TMPFS_DIR/$WINE_PREFIX_GAME_DIR
-		fi
-		
+
 		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Update) Updating..." | tee -a "$LOG_SCRIPT"
-		
+
 		if [[ "$STEAMGUARD_CLI" == "1" ]]; then
 			if [[ "$STEAMCMD_BETA_BRANCH" == "0" ]]; then
 				steamcmd +@sSteamCmdForcePlatformType windows +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +login $STEAMCMD_UID $STEAMCMD_PSW $(steamguard) +app_update $APPID validate +quit
@@ -1148,34 +1130,29 @@ script_update() {
 				steamcmd +@sSteamCmdForcePlatformType windows +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +login $STEAMCMD_UID $STEAMCMD_PSW +app_update $APPID -beta $STEAMCMD_BETA_BRANCH_NAME validate +quit
 			fi
 		fi
-		
+
 		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Update) Update completed." | tee -a "$LOG_SCRIPT"
 		echo "$AVAILABLE_BUILDID" > $UPDATE_DIR/installed.buildid
 		echo "$AVAILABLE_TIME" > $UPDATE_DIR/installed.timeupdated
-		
-		if [[ "$TMPFS_ENABLE" == "1" ]]; then
-			mkdir -p $TMPFS_DIR/$WINE_PREFIX_GAME_DIR/Build
-			rsync -aAX --info=progress2 $SRV_DIR/ $TMPFS_DIR
-		fi
-		
+
 		for SERVER_SERVICE in "${WAS_ACTIVE[@]}"; do
-			SERVER_NUMBER=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
+			SERVER_INSTANCE=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
 			if [[ "$UPDATE_IGNORE_FAILED_ACTIVATIONS" == "1" ]]; then
-				script_start_ignore_errors $SERVER_NUMBER
+				script_start_ignore_errors $SERVER_INSTANCE
 			else
-				script_start $SERVER_NUMBER
+				script_start $SERVER_INSTANCE
 			fi
 		done
-		
+
 		if [[ "$EMAIL_UPDATE" == "1" ]]; then
 			mail -r "$EMAIL_SENDER ($NAME-$SERVICE_NAME)" -s "Notification: Update" $EMAIL_RECIPIENT <<- EOF
 			Server was updated. Please check the update notes if there are any additional steps to take.
 			EOF
 		fi
-		
+
 		if [[ "$DISCORD_UPDATE" == "1" ]]; then
 			while IFS="" read -r DISCORD_WEBHOOK || [ -n "$DISCORD_WEBHOOK" ]; do
-				curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Update) Server update complete.\"}" "$DISCORD_WEBHOOK"
+				curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"[$VERSION] [$NAME] (Update) Server update complete.\"}" "$DISCORD_WEBHOOK"
 			done < $CONFIG_DIR/discord_webhooks.txt
 		fi
 	elif [ "$AVAILABLE_TIME" -eq "$INSTALLED_TIME" ]; then
@@ -1190,43 +1167,25 @@ script_update() {
 script_verify_game_integrity() {
 	script_logs
 	if [[ "$STEAMCMD_UID" == "disabled" ]] && [[ "$STEAMCMD_PSW" == "disabled" ]]; then
-		while [[ "$STEAMCMDSUCCESS" != "0" ]]; do
-			read -p "Enter your Steam username: " STEAMCMD_UID
-			echo ""
-			read -p "Enter your Steam password: " STEAMCMD_PSW
-			steamcmd +login $STEAMCMD_UID $STEAMCMD_PSW +quit
-			STEAMCMDSUCCESS=$?
-			if [[ "$STEAMCMDSUCCESS" == "0" ]]; then
-				echo "Steam login for $STEAMCMD_UID: SUCCEDED!"
-			elif [[ "$STEAMCMDSUCCESS" != "0" ]]; then
-				echo "Steam login for $STEAMCMD_UID: FAILED!"
-				echo "Please try again."
-			fi
-		done
+		script_steamcmd_credentials
 	fi
+
 	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Integrity check) Initializing integrity check." | tee -a "$LOG_SCRIPT"
 	if [[ "$STEAMCMD_BETA_BRANCH" == "1" ]]; then
 		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Integrity check) Beta branch enabled. Branch name: $STEAMCMD_BETA_BRANCH_NAME" | tee -a "$LOG_SCRIPT"
 	fi
-	
+
 	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Integrity check) Removing Steam/appcache/appinfo.vdf" | tee -a "$LOG_SCRIPT"
 	rm -rf "/srv/$SERVICE_NAME/.steam/appcache/appinfo.vdf"
-	
+
 	IFS=","
-	for SERVER_SERVICE in $(systemctl --user list-units -all --no-legend --no-pager --plain $SERVICE@*.service | awk '{print $1}' | tr "\\n" "," | sed 's/,$//'); do
+	for SERVER_SERVICE in $(systemctl --user list-units -all --no-legend --no-pager --plain $SERVICE_NAME@*.service $SERVICE_NAME-tmpfs@*.service | awk '{print $1}' | tr "\\n" "," | sed 's/,$//'); do
 		if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]]; then
 			WAS_ACTIVE=("$SERVER_SERVICE" "${WAS_ACTIVE[@]}")
 		fi
 	done
-	sleep 1
 	script_stop
-	sleep 1
-	
-	if [[ "$TMPFS_ENABLE" == "1" ]]; then
-		rsync -aAX --info=progress2 $TMPFS_DIR/ $SRV_DIR
-		rm -rf $TMPFS_DIR/$WINE_PREFIX_GAME_DIR
-	fi
-	
+
 	if [[ "$STEAMGUARD_CLI" == "1" ]]; then
 		if [[ "$STEAMCMD_BETA_BRANCH" == "0" ]]; then
 			steamcmd +@sSteamCmdForcePlatformType windows +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +login $STEAMCMD_UID $STEAMCMD_PSW $(steamguard) +app_update $APPID validate +quit
@@ -1240,22 +1199,17 @@ script_verify_game_integrity() {
 			steamcmd +@sSteamCmdForcePlatformType windows +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +login $STEAMCMD_UID $STEAMCMD_PSW +app_update $APPID -beta $STEAMCMD_BETA_BRANCH_NAME validate +quit
 		fi
 	fi
-	
-	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Integrity check) Integrity check completed." | tee -a "$LOG_SCRIPT"
-	
-	if [[ "$TMPFS_ENABLE" == "1" ]]; then
-		mkdir -p $TMPFS_DIR/$WINE_PREFIX_GAME_DIR/Build
-		rsync -aAX --info=progress2 $SRV_DIR/ $TMPFS_DIR
-	fi
-	
+
 	for SERVER_SERVICE in "${WAS_ACTIVE[@]}"; do
-		SERVER_NUMBER=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
+		SERVER_INSTANCE=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
 		if [[ "$UPDATE_IGNORE_FAILED_ACTIVATIONS" == "1" ]]; then
-			script_start_ignore_errors $SERVER_NUMBER
+			script_start_ignore_errors $SERVER_INSTANCE
 		else
-			script_start $SERVER_NUMBER
+			script_start $SERVER_INSTANCE
 		fi
 	done
+
+	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Integrity check) Integrity check completed." | tee -a "$LOG_SCRIPT"
 }
 
 #---------------------------
@@ -1425,17 +1379,17 @@ script_timer_one() {
 	RUNNING_SERVERS="0"
 	IFS=","
 	for SERVER_SERVICE in $(systemctl --user list-units -all --no-legend --no-pager --plain $SERVICE@*.service | awk '{print $1}' | tr "\\n" "," | sed 's/,$//'); do
-		SERVER_NUMBER=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
+		SERVER_INSTANCE=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
 		if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "inactive" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_NUMBER is not running." | tee -a "$LOG_SCRIPT"
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_INSTANCE is not running." | tee -a "$LOG_SCRIPT"
 		elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "failed" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_NUMBER is in failed state. Please check logs." | tee -a "$LOG_SCRIPT"
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_INSTANCE is in failed state. Please check logs." | tee -a "$LOG_SCRIPT"
 		elif [[ "$(systemctl --user show -p ActiveState --value $SERVICE)" == "activating" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_NUMBER is activating. Aborting until next scheduled execution." | tee -a "$LOG_SCRIPT"
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_INSTANCE is activating. Aborting until next scheduled execution." | tee -a "$LOG_SCRIPT"
 		elif [[ "$(systemctl --user show -p ActiveState --value $SERVICE)" == "deactivating" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_NUMBER is in deactivating. Aborting until next scheduled execution." | tee -a "$LOG_SCRIPT"
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_INSTANCE is in deactivating. Aborting until next scheduled execution." | tee -a "$LOG_SCRIPT"
 		elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_NUMBER is running." | tee -a "$LOG_SCRIPT"
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_INSTANCE is running." | tee -a "$LOG_SCRIPT"
 			RUNNING_SERVERS=$(($RUNNING_SERVERS + 1))
 		fi
 	done
@@ -1445,7 +1399,7 @@ script_timer_one() {
 		script_crash_kill
 		script_save
 		script_sync
-		script_autobackup
+		script_backup
 		if [[ "$STEAMCMD_UID" != "disabled" ]] && [[ "$STEAMCMD_PSW" != "disabled" ]]; then
 			script_update
 		fi
@@ -1460,17 +1414,17 @@ script_timer_two() {
 	RUNNING_SERVERS="0"
 	IFS=","
 	for SERVER_SERVICE in $(systemctl --user list-units -all --no-legend --no-pager --plain $SERVICE@*.service | awk '{print $1}' | tr "\\n" "," | sed 's/,$//'); do
-		SERVER_NUMBER=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
+		SERVER_INSTANCE=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
 		if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "inactive" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_NUMBER is not running." | tee -a "$LOG_SCRIPT"
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_INSTANCE is not running." | tee -a "$LOG_SCRIPT"
 		elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "failed" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_NUMBER is in failed state. Please check logs." | tee -a "$LOG_SCRIPT"
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_INSTANCE is in failed state. Please check logs." | tee -a "$LOG_SCRIPT"
 		elif [[ "$(systemctl --user show -p ActiveState --value $SERVICE)" == "activating" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_NUMBER is activating. Aborting until next scheduled execution." | tee -a "$LOG_SCRIPT"
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_INSTANCE is activating. Aborting until next scheduled execution." | tee -a "$LOG_SCRIPT"
 		elif [[ "$(systemctl --user show -p ActiveState --value $SERVICE)" == "deactivating" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_NUMBER is in deactivating. Aborting until next scheduled execution." | tee -a "$LOG_SCRIPT"
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_INSTANCE is in deactivating. Aborting until next scheduled execution." | tee -a "$LOG_SCRIPT"
 		elif [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]]; then
-			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_NUMBER is running." | tee -a "$LOG_SCRIPT"
+			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Status) Server $SERVER_INSTANCE is running." | tee -a "$LOG_SCRIPT"
 			RUNNING_SERVERS=$(($RUNNING_SERVERS + 1))
 		fi
 	done
@@ -1549,7 +1503,7 @@ script_diagnostics() {
 
 	echo "Checking if files and folders present:"
 	#Check if files/folders present
-	if [ -f "/usr/bin/$SERVICE_NAME-script" ] ; then
+	if [ -f "/usr/bin/$SERVICE_NAME-script" ]; then
 		echo "Script present: Yes"
 	else
 		echo "Script present: No"
@@ -1589,25 +1543,25 @@ script_diagnostics() {
 		echo "Updates folder present: No"
 	fi
 
-	if [ -f "$CONFIG_DIR/$SERVICE_NAME-script.conf" ] ; then
+	if [ -f "$CONFIG_DIR/$SERVICE_NAME-script.conf" ]; then
 		echo "Script configuration file present: Yes"
 	else
 		echo "Script configuration file present: No"
 	fi
 
-	if [ -f "$CONFIG_DIR/$SERVICE_NAME-steam.conf" ] ; then
+	if [ -f "$CONFIG_DIR/$SERVICE_NAME-steam.conf" ]; then
 		echo "Steam configuration file present: Yes"
 	else
 		echo "Steam configuration file present: No"
 	fi
 
-	if [ -f "$CONFIG_DIR/$SERVICE_NAME-discord.conf" ] ; then
+	if [ -f "$CONFIG_DIR/$SERVICE_NAME-discord.conf" ]; then
 		echo "Discord configuration file present: Yes"
 	else
 		echo "Discord configuration file present: No"
 	fi
 
-	if [ -f "$CONFIG_DIR/$SERVICE_NAME-email.conf" ] ; then
+	if [ -f "$CONFIG_DIR/$SERVICE_NAME-email.conf" ]; then
 		echo "Email configuration file present: Yes"
 	else
 		echo "Email configuration file present: No"
@@ -1677,19 +1631,9 @@ script_config_steam() {
 	echo ""
 	read -p "Do you want to use steam to download the game files and be resposible for maintaining them? (y/n): " INSTALL_STEAMCMD_ENABLE
 	if [[ "$INSTALL_STEAMCMD_ENABLE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-		while [[ "$INSTALL_STEAMCMD_SUCCESS" != "0" ]]; do
-			read -p "Enter your Steam username: " INSTALL_STEAMCMD_UID
-			echo ""
-			read -p "Enter your Steam password: " INSTALL_STEAMCMD_PSW
-			steamcmd +login $INSTALL_STEAMCMD_UID $INSTALL_STEAMCMD_PSW +quit
-			INSTALL_STEAMCMD_SUCCESS=$?
-			if [[ "$INSTALL_STEAMCMD_SUCCESS" == "0" ]]; then
-				echo "Steam login for $INSTALL_STEAMCMD_UID: SUCCEDED!"
-			elif [[ "$INSTALL_STEAMCMD_SUCCESS" != "0" ]]; then
-				echo "Steam login for $INSTALL_STEAMCMD_UID: FAILED!"
-				echo "Please try again."
-			fi
-		done
+		if [[ "$STEAMCMD_UID" == "disabled" ]] && [[ "$STEAMCMD_PSW" == "disabled" ]]; then
+			script_steamcmd_credentials
+		fi
 
 		echo ""
 		read -p "Do you have a Steam Guard Authentication app installed and configured? (y/n): " INSTALL_STEAMGUARD_CLI_ENABLE
@@ -1735,9 +1679,9 @@ script_config_steam() {
 				echo "$INSTALLED_TIME" > $UPDATE_DIR/installed.timeupdated
 
 				if [[ "$INSTALL_STEAMGUARD_CLI" == "1" ]]; then
-					steamcmd +@sSteamCmdForcePlatformType windows +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +login $INSTALL_STEAMCMD_UID $INSTALL_STEAMCMD_PSW $(steamguard) +app_update $APPID validate +quit
+					steamcmd +@sSteamCmdForcePlatformType windows +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +login $STEAMCMD_UID $STEAMCMD_PSW $(steamguard) +app_update $APPID validate +quit
 				else
-					steamcmd +@sSteamCmdForcePlatformType windows +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +login $INSTALL_STEAMCMD_UID $INSTALL_STEAMCMD_PSW +app_update $APPID validate +quit
+					steamcmd +@sSteamCmdForcePlatformType windows +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +login $STEAMCMD_UID $STEAMCMD_PSW +app_update $APPID validate +quit
 				fi
 			elif [[ "$INSTALL_STEAMCMD_BETA_BRANCH" == "1" ]]; then
 				INSTALLED_BUILDID=$(cat /srv/$SERVICE_NAME/updates/steam_app_data.txt | grep -EA 1000 "^\s+\"branches\"$" | grep -EA 5 "^\s+\"$INSTALL_STEAMCMD_BETA_BRANCH_NAME\"$" | grep -m 1 -EB 10 "^\s+}$" | grep -E "^\s+\"buildid\"\s+" | tr '[:blank:]"' ' ' | tr -s ' ' | cut -d' ' -f3)
@@ -1747,9 +1691,9 @@ script_config_steam() {
 				echo "$INSTALLED_TIME" > $UPDATE_DIR/installed.timeupdated
 
 				if [[ "$INSTALL_STEAMGUARD_CLI" == "1" ]]; then
-					steamcmd +@sSteamCmdForcePlatformType windows +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +login $INSTALL_STEAMCMD_UID $INSTALL_STEAMCMD_PSW $(steamguard) +app_update $APPID -beta $INSTALL_STEAMCMD_BETA_BRANCH_NAME validate +quit
+					steamcmd +@sSteamCmdForcePlatformType windows +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +login $STEAMCMD_UID $INSTALL_STEAMCMD_PSW $(steamguard) +app_update $APPID -beta $INSTALL_STEAMCMD_BETA_BRANCH_NAME validate +quit
 				else
-					steamcmd +@sSteamCmdForcePlatformType windows +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +login $INSTALL_STEAMCMD_UID $INSTALL_STEAMCMD_PSW +app_update $APPID -beta $INSTALL_STEAMCMD_BETA_BRANCH_NAME validate +quit
+					steamcmd +@sSteamCmdForcePlatformType windows +force_install_dir $SRV_DIR/$WINE_PREFIX_GAME_DIR +login $STEAMCMD_UID $INSTALL_STEAMCMD_PSW +app_update $APPID -beta $INSTALL_STEAMCMD_BETA_BRANCH_NAME validate +quit
 				fi
 			fi
 		else
@@ -1758,8 +1702,8 @@ script_config_steam() {
 	else
 		echo ""
 		echo "Manual game installation selected. Copy your game files to $SRV_DIR/$WINE_PREFIX_GAME_DIR after installation."
-		INSTALL_STEAMCMD_UID="disabled"
-		INSTALL_STEAMCMD_PSW="disabled"
+		STEAMCMD_UID="disabled"
+		STEAMCMD_PSW="disabled"
 		INSTALL_STEAMGUARD_CLI="0"
 		INSTALL_STEAMCMD_STORE_CREDENTIALS="0"
 		INSTALL_STEAMCMD_BETA_BRANCH="0"
@@ -1882,7 +1826,7 @@ script_config_email() {
 			else
 				INSTALL_EMAIL_CRASH="0"
 			fi
-		if [[ "$EUID" == "$(id -u root)" ]] ; then
+		if [[ "$EUID" == "$(id -u root)" ]]; then
 			read -p "Configure postfix? (y/n): " INSTALL_EMAIL_CONFIGURE
 			if [[ "$INSTALL_EMAIL_CONFIGURE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
 				echo ""
@@ -1958,7 +1902,7 @@ script_config_tmpfs() {
 	if [[ "$INSTALL_TMPFS" =~ ^([yY][eE][sS]|[yY])$ ]]; then
 		read -p "Ramdisk size (I recommend at least 8GB): " INSTALL_TMPFS_SIZE
 		echo "Installing ramdisk configuration"
-		if [[ "$EUID" == "$(id -u root)" ]] ; then
+		if [[ "$EUID" == "$(id -u root)" ]]; then
 			cat >> /etc/fstab <<- EOF
 
 			# /mnt/tmpfs
@@ -2007,12 +1951,18 @@ script_config_script() {
 	read -p "Press any key to continue" -n 1 -s -r
 	echo ""
 
-	echo "Enable services"
+	echo "Generating wine prefix"
+	script_generate_wine_prefix
 
-	systemctl --user enable $SERVICE_NAME@01.service
+	echo "Enable services"
 	systemctl --user enable --now $SERVICE_NAME-timer-1.timer
 	systemctl --user enable --now $SERVICE_NAME-timer-2.timer
-	echo "$SERVICE_NAME@01.service" > $CONFIG_DIR/$SERVICE_NAME-server-list.txt
+
+
+	script_config_steam
+
+	echo "Adding first server"
+	script_add_server
 
 	echo "Writing config files"
 
@@ -2021,20 +1971,12 @@ script_config_script() {
 	fi
 
 	touch $CONFIG_DIR/$SERVICE_NAME-script.conf
-	echo 'script_tmpfs=0' >> $CONFIG_DIR/$SERVICE_NAME-script.conf
-	echo 'script_bckp_delold=14' >> $CONFIG_DIR/$SERVICE_NAME-script.conf
+	echo 'script_bckp_delold=7' >> $CONFIG_DIR/$SERVICE_NAME-script.conf
 	echo 'script_log_delold=7' >> $CONFIG_DIR/$SERVICE_NAME-script.conf
 	echo 'script_log_game_delold=7' >> $CONFIG_DIR/$SERVICE_NAME-script.conf
 	echo 'script_dump_game_delold=7' >> $CONFIG_DIR/$SERVICE_NAME-script.conf
 	echo 'script_update_ignore_failed_startups=0' >> $CONFIG_DIR/$SERVICE_NAME-script.conf
 	echo 'script_timeout_save=120' >> $CONFIG_DIR/$SERVICE_NAME-script.conf
-
-	echo "Generating wine prefix"
-	script_generate_wine_prefix
-
-	if [ ! -d "$BCKP_SRC_DIR" ]; then
-		mkdir -p "$BCKP_SRC_DIR"
-	fi
 
 	echo "Configuration complete"
 	echo "For any settings you'll want to change, edit the files located in $CONFIG_DIR/"
@@ -2099,8 +2041,6 @@ case "$1" in
 		echo ""
 		echo "Backup managment:"
 		echo -e "${GREEN}backup        ${RED}- ${GREEN}Backup files, if server running or not.${NC}"
-		echo -e "${GREEN}autobackup    ${RED}- ${GREEN}Automaticly backup files when server running.${NC}"
-		echo -e "${GREEN}delete_backup ${RED}- ${GREEN}Delete old backups.${NC}"
 		echo ""
 		echo "Steam managment:"
 		echo -e "${GREEN}update        ${RED}- ${GREEN}Update the server, if the server is running it will save it, shut it down, update it and restart it.${NC}"
@@ -2109,7 +2049,6 @@ case "$1" in
 		echo ""
 		echo "Game specific functions:"
 		echo -e "${GREEN}crash_kill                  ${RED}- ${GREEN}If the aluna crash handler is running and is frozen, this function kills it.${NC}"
-		echo -e "${GREEN}delete_save <server number> ${RED}- ${GREEN}Delete the server's save game with the option for deleting/keeping the server.json and other server files.${NC}"
 		echo ""
 		echo "Wine functions:"
 		echo -e "${GREEN}rebuild_prefix ${RED}- ${GREEN}Reinstalls the wine prefix. Usefull if any wine prefix updates occoured.${NC}"
@@ -2185,13 +2124,6 @@ case "$1" in
 	backup)
 		script_backup
 		;;
-	autobackup)
-		script_autobackup
-		;;
-	delete_backup)
-		script_deloldbackup
-		;;
-
 #---------------------------
 #Steam managment
 	update)
@@ -2208,9 +2140,6 @@ case "$1" in
 	crash_kill)
 		script_crash_kill
 		;;
-	delete_save)
-		script_delete_save $2
-		;;
 #---------------------------
 #Wine functions
 	rebuild_prefix)
@@ -2218,8 +2147,11 @@ case "$1" in
 		;;
 #---------------------------
 #Hidden functions meant for systemd service use
+	initial-sync)
+		script_initial_tmpfs_sync $2
+		;;
 	pre-start)
-		script_prestart $2
+		script_prestart $2 $3
 		;;
 	post-start)
 		script_poststart $2
@@ -2228,7 +2160,7 @@ case "$1" in
 		script_prestop $2
 		;;
 	post-stop)
-		script_poststop $2
+		script_poststop $2 $3
 		;;
 	send_notification_crash)
 		script_send_notification_crash $2
@@ -2254,9 +2186,9 @@ case "$1" in
 	echo -e "${GREEN}Configuration and installation${RED}: ${GREEN}config_script, config_steam, config_discord, config_email, config_tmpfs${NC}"
 	echo -e "${GREEN}Server services managment${RED}: ${GREEN}add_server, remove_server, enable_services, disable_services, reload_services${NC}"
 	echo -e "${GREEN}Server and console managment${RED}: ${GREEN}start, start_no_err, stop,restart, save, sync, attach${NC}"
-	echo -e "${GREEN}Backup managment${RED}: ${GREEN}backup, autobackup, delete_backup${NC}"
+	echo -e "${GREEN}Backup managment${RED}: ${GREEN}backup${NC}"
 	echo -e "${GREEN}Steam managment${RED}: ${GREEN}update, verify, change_branch${NC}"
-	echo -e "${GREEN}Game specific functions${RED}: ${GREEN}crash_kill, delete_save${NC}"
+	echo -e "${GREEN}Game specific functions${RED}: ${GREEN}crash_kill${NC}"
 	echo -e "${GREEN}Wine functions${RED}: ${GREEN}rebuild_prefix${NC}"
 	exit 1
 	;;
