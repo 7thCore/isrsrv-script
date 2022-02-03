@@ -21,7 +21,7 @@
 
 #Static script variables
 export NAME="IsRSrv" #Name of the tmux session
-export VERSION="1.6-5" #Package and script version
+export VERSION="1.6-6" #Package and script version
 export SERVICE_NAME="isrsrv" #Name of the service files, user, script and script log
 export LOG_DIR="/srv/$SERVICE_NAME/logs" #Location of stored script logs
 export LOG_STRUCTURE="$LOG_DIR/$(date +"%Y")/$(date +"%m")/$(date +"%d")" #Location of the script's log files
@@ -78,11 +78,23 @@ if [ -f "$CONFIG_DIR/$SERVICE_NAME-discord.conf" ]; then
 	DISCORD_START=$(cat $CONFIG_DIR/$SERVICE_NAME-discord.conf | grep discord_start= | cut -d = -f2) #Send notifications when the server starts
 	DISCORD_STOP=$(cat $CONFIG_DIR/$SERVICE_NAME-discord.conf | grep discord_stop= | cut -d = -f2) #Send notifications when the server stops
 	DISCORD_CRASH=$(cat $CONFIG_DIR/$SERVICE_NAME-discord.conf | grep discord_crash= | cut -d = -f2) #Send notifications when the server crashes
+	DISCORD_COLOR_PRESTART=$(cat $CONFIG_DIR/$SERVICE_NAME-discord.conf | grep discord_color_prestart= | cut -d = -f2) #Discord embed color for prestart
+	DISCORD_COLOR_POSTSTART=$(cat $CONFIG_DIR/$SERVICE_NAME-discord.conf | grep discord_color_poststart= | cut -d = -f2) #Discord embed color for poststart
+	DISCORD_COLOR_PRESTOP=$(cat $CONFIG_DIR/$SERVICE_NAME-discord.conf | grep discord_color_prestop= | cut -d = -f2) #Discord embed color for prestop
+	DISCORD_COLOR_POSTSTOP=$(cat $CONFIG_DIR/$SERVICE_NAME-discord.conf | grep discord_color_poststop= | cut -d = -f2) #Discord embed color for poststop
+	DISCORD_COLOR_UPDATE=$(cat $CONFIG_DIR/$SERVICE_NAME-discord.conf | grep discord_color_update= | cut -d = -f2) #Discord embed color for update
+	DISCORD_COLOR_CRASH=$(cat $CONFIG_DIR/$SERVICE_NAME-discord.conf | grep discord_color_crash= | cut -d = -f2) #Discord embed color for crash
 else
 	DISCORD_UPDATE="0"
 	DISCORD_START="0"
 	DISCORD_STOP="0"
 	DISCORD_CRASH="0"
+	DISCORD_COLOR_PRESTART="16776960"
+	DISCORD_COLOR_POSTSTART="65280"
+	DISCORD_COLOR_PRESTOP="16776960"
+	DISCORD_COLOR_POSTSTOP="65280"
+	DISCORD_COLOR_UPDATE="47083"
+	DISCORD_COLOR_CRASH="16711680"
 fi
 
 #Email configuration
@@ -115,8 +127,17 @@ NC='\033[0m'
 script_logs() {
 	#If there is not a folder for today, create one
 	if [ ! -d "$LOG_STRUCTURE" ]; then
-		mkdir -p $LOG_STRUCTURE
+		mkdir -p "$LOG_STRUCTURE"
 	fi
+}
+
+#---------------------------
+
+#Discord webhook message send
+script_discord_message() {
+		while IFS="" read -r DISCORD_WEBHOOK || [ -n "$DISCORD_WEBHOOK" ]; do
+			curl -H "Content-Type: application/json" -X POST -d "{\"embeds\": [{ \"author\": { \"name\": \"$NAME Script\", \"url\": \"https://github.com/7thCore/$SERVICE_NAME-script\" }, \"color\": \"$1\", \"description\": \"$2\", \"footer\": {\"text\": \"Version $VERSION\"}, \"timestamp\": \"$(date -u --iso-8601=seconds)\"}] }" "$DISCORD_WEBHOOK"
+		done < $CONFIG_DIR/discord_webhooks.txt
 }
 
 #---------------------------
@@ -436,6 +457,9 @@ script_initial_tmpfs_sync() {
 	if [[ "$1" == "start" ]]; then
 		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Initial sync) Starting initial sync to tmpfs service." | tee -a "$LOG_SCRIPT"
 		rsync -aAX --info=progress2 --exclude="$WINE_PREFIX_GAME_CONFIG/*" $SRV_DIR/ $TMPFS_DIR
+		if [ ! -d "$TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG" ]; then
+			mkdir -p "$TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG"
+		fi
 		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Initial sync) Sync from disk to tmpfs complete." | tee -a "$LOG_SCRIPT"
 	elif [[ "$1" == "stop" ]]; then
 		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Initial sync) Shuting down initial sync to tmpfs service." | tee -a "$LOG_SCRIPT"
@@ -453,13 +477,11 @@ script_prestart() {
 		EOF
 	fi
 	if [[ "$DISCORD_START" == "1" ]]; then
-		while IFS="" read -r DISCORD_WEBHOOK || [ -n "$DISCORD_WEBHOOK" ]; do
-			curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"[$VERSION] [$NAME] (Start) Server startup for $1 was initialized.\"}" "$DISCORD_WEBHOOK"
-		done < $CONFIG_DIR/discord_webhooks.txt
+		script_discord_message "$DISCORD_COLOR_PRESTART" "Server startup for $1 was initialized."
 	fi
 	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server startup for $1 was initialized." | tee -a "$LOG_SCRIPT"
 
-	if [ -f "$SRV_DIR/$WINE_PREFIX_GAME_CONFIG" ]; then
+	if [ ! -d "$SRV_DIR/$WINE_PREFIX_GAME_CONFIG" ]; then
 		mkdir -p "$SRV_DIR/$WINE_PREFIX_GAME_CONFIG"
 	fi
 
@@ -495,9 +517,7 @@ script_poststart() {
 		EOF
 	fi
 	if [[ "$DISCORD_START" == "1" ]]; then
-		while IFS="" read -r DISCORD_WEBHOOK || [ -n "$DISCORD_WEBHOOK" ]; do
-			curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"[$VERSION] [$NAME] (Start) Server startup for $1 complete.\"}" "$DISCORD_WEBHOOK"
-		done < $CONFIG_DIR/discord_webhooks.txt
+		script_discord_message "$DISCORD_COLOR_POSTSTART" "Server startup for $1 complete."
 	fi
 	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Start) Server startup for $1 complete." | tee -a "$LOG_SCRIPT"
 }
@@ -513,9 +533,7 @@ script_prestop() {
 		EOF
 	fi
 	if [[ "$DISCORD_STOP" == "1" ]]; then
-		while IFS="" read -r DISCORD_WEBHOOK || [ -n "$DISCORD_WEBHOOK" ]; do
-			curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"[$VERSION] [$NAME] (Stop) Server shutdown for $1 was initialized.\"}" "$DISCORD_WEBHOOK"
-		done < $CONFIG_DIR/discord_webhooks.txt
+		script_discord_message "$DISCORD_COLOR_PRESTOP" "Server shutdown for $1 was initialized."
 	fi
 	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Stop) Server shutdown for $1 was initialized." | tee -a "$LOG_SCRIPT"
 }
@@ -580,9 +598,7 @@ script_poststop() {
 		EOF
 	fi
 	if [[ "$DISCORD_STOP" == "1" ]]; then
-		while IFS="" read -r DISCORD_WEBHOOK || [ -n "$DISCORD_WEBHOOK" ]; do
-			curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"[$VERSION] [$NAME] (Stop) Server shutdown for $1 complete.\"}" "$DISCORD_WEBHOOK"
-		done < $CONFIG_DIR/discord_webhooks.txt
+		script_discord_message "$DISCORD_COLOR_POSTSTOP" "Server shutdown for $1 complete."
 	fi
 	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Stop) Server shutdown for $1 complete." | tee -a "$LOG_SCRIPT"
 }
@@ -623,9 +639,7 @@ script_send_notification_crash() {
 	fi
 
 	if [[ "$DISCORD_CRASH" == "1" ]]; then
-		while IFS="" read -r DISCORD_WEBHOOK || [ -n "$DISCORD_WEBHOOK" ]; do
-			curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"[$VERSION] [$NAME] (Crash) Server $1 crashed 3 times in the last 5 minutes. Automatic restart is disabled and the server is inactive. Please review your logs located in $LOG_STRUCTURE/Server-$1-crash_$CRASH_TIME.\"}" "$DISCORD_WEBHOOK"
-		done < $CONFIG_DIR/discord_webhooks.txt
+		script_discord_message "$DISCORD_COLOR_CRASH" "Server $1 crashed 3 times in the last 5 minutes. Automatic restart is disabled and the server is inactive. Please review your logs located in $LOG_STRUCTURE/Server-$1-crash_$CRASH_TIME."
 	fi
 	echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Crash) Server $1 crashed. Please review your logs located in $LOG_STRUCTURE/Server-$1-crash_$CRASH_TIME." | tee -a "$LOG_SCRIPT"
 }
@@ -917,7 +931,7 @@ script_backup() {
 	#If there is not a folder for today, create one
 	script_backup_create_folder() {
 		if [ ! -d "$BCKP_DIR/$1/$BCKP_STRUCTURE" ]; then
-			mkdir -p $BCKP_DIR/$1/$BCKP_STRUCTURE
+			mkdir -p "$BCKP_DIR/$1/$BCKP_STRUCTURE"
 		fi
 	}
 
@@ -1110,9 +1124,7 @@ script_update() {
 		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Update) Available: BuildID: $AVAILABLE_BUILDID, TimeUpdated: $AVAILABLE_TIME" | tee -a "$LOG_SCRIPT"
 
 		if [[ "$DISCORD_UPDATE" == "1" ]]; then
-			while IFS="" read -r DISCORD_WEBHOOK || [ -n "$DISCORD_WEBHOOK" ]; do
-				curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"[$VERSION] [$NAME] (Update) New update detected. Installing update.\"}" "$DISCORD_WEBHOOK"
-			done < $CONFIG_DIR/discord_webhooks.txt
+			script_discord_message "$DISCORD_COLOR_UPDATE" "New update detected. Installing update."
 		fi
 
 		IFS=","
@@ -1166,9 +1178,7 @@ script_update() {
 		fi
 
 		if [[ "$DISCORD_UPDATE" == "1" ]]; then
-			while IFS="" read -r DISCORD_WEBHOOK || [ -n "$DISCORD_WEBHOOK" ]; do
-				curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"[$VERSION] [$NAME] (Update) Server update complete.\"}" "$DISCORD_WEBHOOK"
-			done < $CONFIG_DIR/discord_webhooks.txt
+			script_discord_message "$DISCORD_COLOR_UPDATE" "Server update complete."
 		fi
 	elif [ "$AVAILABLE_TIME" -eq "$INSTALLED_TIME" ]; then
 		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Update) No new updates detected." | tee -a "$LOG_SCRIPT"
@@ -1361,19 +1371,27 @@ script_generate_wine_prefix() {
 #Reinstalls the wine prefix
 script_install_prefix() {
 	script_logs
-	if [[ "$(systemctl --user show -p ActiveState --value $SERVICE)" != "active" ]] && [[ "$(systemctl --user show -p ActiveState --value $SERVICE)" != "activating" ]] && [[ "$(systemctl --user show -p ActiveState --value $SERVICE)" != "deactivating" ]]; then
+
+	RUNNING_SERVERS="0"
+	for SERVER_SERVICE in $(systemctl --user list-units -all --no-legend --no-pager --plain $SERVICE_NAME@*.service $SERVICE_NAME-tmpfs@*.service | awk '{print $1}' | tr "\\n" "," | sed 's/,$//'); do
+		if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]] || [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "activating" ]] || [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "deactivating" ]]; then
+			RUNNING_SERVERS=$(($RUNNING_SERVERS + 1))
+		fi
+	done
+
+	if [ $RUNNING_SERVERS -eq "0" ]; then
 		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Reinstall Wine prefix) Wine prefix reinstallation commencing. Waiting on user configuration." | tee -a "$LOG_SCRIPT"
 		read -p "Are you sure you want to reinstall the wine prefix? (y/n): " REINSTALL_PREFIX
 		if [[ "$REINSTALL_PREFIX" =~ ^([yY][eE][sS]|[yY])$ ]]; then
 			#If there is not a backup folder for today, create one
 			if [ ! -d "$BCKP_DEST" ]; then
-				mkdir -p $BCKP_DEST
+				mkdir -p "$BCKP_DEST"
 			fi
 			read -p "Do you want to keep the game installation and server data (saves,configs,etc.)? (y/n): " REINSTALL_PREFIX_KEEP_DATA
 			if [[ "$REINSTALL_PREFIX_KEEP_DATA" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-				mkdir -p $BCKP_DIR/prefix_backup/{game,appdata}
+				mkdir -p "$BCKP_DIR/prefix_backup/{game,game_save}"
 				mv "$SRV_DIR/$WINE_PREFIX_GAME_DIR"/* $BCKP_DIR/prefix_backup/game
-				mv "$SRV_DIR/$WINE_PREFIX_GAME_CONFIG"/* $BCKP_DIR/prefix_backup/appdata
+				mv "$SRV_DIR/$WINE_PREFIX_GAME_CONFIG"/* $BCKP_DIR/prefix_backup/game_save
 			fi
 			rm -rf $SRV_DIR
 			script_generate_wine_prefix
@@ -1381,7 +1399,7 @@ script_install_prefix() {
 				mkdir -p "$SRV_DIR/$WINE_PREFIX_GAME_DIR"
 				mkdir -p "$SRV_DIR/$WINE_PREFIX_GAME_CONFIG"
 				mv $BCKP_DIR/prefix_backup/game/* "$SRV_DIR/$WINE_PREFIX_GAME_DIR"
-				mv $BCKP_DIR/prefix_backup/appdata/* "$SRV_DIR/$WINE_PREFIX_GAME_CONFIG"
+				mv $BCKP_DIR/prefix_backup/game_save/* "$SRV_DIR/$WINE_PREFIX_GAME_CONFIG"
 				rm -rf $BCKP_DIR/prefix_backup
 			fi
 			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Reinstall Wine prefix) Wine prefix reinstallation complete." | tee -a "$LOG_SCRIPT"
@@ -1389,7 +1407,7 @@ script_install_prefix() {
 			echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Reinstall Wine prefix) Wine prefix reinstallation aborted." | tee -a "$LOG_SCRIPT"
 		fi
 	else
-		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Reinstall Wine prefix) Cannot reinstall wine prefix while server is running. Aborting..." | tee -a "$LOG_SCRIPT"
+		echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Reinstall Wine prefix) Cannot reinstall wine prefix while servers are running. Aborting..." | tee -a "$LOG_SCRIPT"
 	fi
 }
 
@@ -1801,10 +1819,16 @@ script_config_discord() {
 
 	echo "Writing configuration file..."
 	touch $CONFIG_DIR/$SERVICE_NAME-discord.conf
-	echo 'discord_update='"$INSTALL_DISCORD_UPDATE" >> $CONFIG_DIR/$SERVICE_NAME-discord.conf
+	echo 'discord_update='"$INSTALL_DISCORD_UPDATE" > $CONFIG_DIR/$SERVICE_NAME-discord.conf
 	echo 'discord_start='"$INSTALL_DISCORD_START" >> $CONFIG_DIR/$SERVICE_NAME-discord.conf
 	echo 'discord_stop='"$INSTALL_DISCORD_STOP" >> $CONFIG_DIR/$SERVICE_NAME-discord.conf
 	echo 'discord_crash='"$INSTALL_DISCORD_CRASH" >> $CONFIG_DIR/$SERVICE_NAME-discord.conf
+	echo 'discord_color_prestart=16776960' >> $CONFIG_DIR/$SERVICE_NAME-discord.conf
+	echo 'discord_color_poststart=65280' >> $CONFIG_DIR/$SERVICE_NAME-discord.conf
+	echo 'discord_color_prestop=16776960' >> $CONFIG_DIR/$SERVICE_NAME-discord.conf
+	echo 'discord_color_poststop=65280' >> $CONFIG_DIR/$SERVICE_NAME-discord.conf
+	echo 'discord_color_update=47083' >> $CONFIG_DIR/$SERVICE_NAME-discord.conf
+	echo 'discord_color_crash=16711680' >> $CONFIG_DIR/$SERVICE_NAME-discord.conf
 	echo "$INSTALL_DISCORD_WEBHOOK" > $CONFIG_DIR/discord_webhooks.txt
 	echo "Done"
 }
@@ -1904,7 +1928,7 @@ script_config_email() {
 	fi
 
 	echo "Writing configuration file..."
-	echo 'email_sender='"$INSTALL_EMAIL_SENDER" >> /srv/$SERVICE_NAME/config/$SERVICE_NAME-email.conf
+	echo 'email_sender='"$INSTALL_EMAIL_SENDER" > /srv/$SERVICE_NAME/config/$SERVICE_NAME-email.conf
 	echo 'email_recipient='"$INSTALL_EMAIL_RECIPIENT" >> /srv/$SERVICE_NAME/config/$SERVICE_NAME-email.conf
 	echo 'email_update='"$INSTALL_EMAIL_UPDATE" >> /srv/$SERVICE_NAME/config/$SERVICE_NAME-email.conf
 	echo 'email_start='"$INSTALL_EMAIL_START" >> /srv/$SERVICE_NAME/config/$SERVICE_NAME-email.conf
@@ -1982,17 +2006,17 @@ script_config_script() {
 
 	echo "Writing config files"
 
-	if [ -f "$CONFIG_DIR/$SERVICE_NAME-script.conf" ]; then
-		rm $CONFIG_DIR/$SERVICE_NAME-script.conf
-	fi
-
 	touch $CONFIG_DIR/$SERVICE_NAME-script.conf
-	echo 'script_bckp_delold=7' >> $CONFIG_DIR/$SERVICE_NAME-script.conf
+	echo 'script_bckp_delold=7' > $CONFIG_DIR/$SERVICE_NAME-script.conf
 	echo 'script_log_delold=7' >> $CONFIG_DIR/$SERVICE_NAME-script.conf
 	echo 'script_log_game_delold=7' >> $CONFIG_DIR/$SERVICE_NAME-script.conf
 	echo 'script_dump_game_delold=7' >> $CONFIG_DIR/$SERVICE_NAME-script.conf
 	echo 'script_update_ignore_failed_startups=0' >> $CONFIG_DIR/$SERVICE_NAME-script.conf
 	echo 'script_timeout_save=120' >> $CONFIG_DIR/$SERVICE_NAME-script.conf
+
+	if [ ! -d "$SRV_DIR/$WINE_PREFIX_GAME_CONFIG" ]; then
+		mkdir -p "$SRV_DIR/$WINE_PREFIX_GAME_CONFIG"
+	fi
 
 	echo "Configuration complete"
 	echo "For any settings you'll want to change, edit the files located in $CONFIG_DIR/"
