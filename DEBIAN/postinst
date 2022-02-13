@@ -1,6 +1,5 @@
 getent group isrsrv >/dev/null || groupadd --system isrsrv
-getent passwd isrsrv >/dev/null || useradd --system -g isrsrv \
-  -d /srv/isrsrv/ -s /bin/bash isrsrv
+getent passwd isrsrv >/dev/null || useradd --system -g isrsrv -d /srv/isrsrv/ -s /bin/bash isrsrv
 
 install -dm700 srv/isrsrv/backups
 install -dm700 srv/isrsrv/config

@@ -1,0 +1,2 @@
+loginctl disable-linger isrsrv
+systemctl stop user@$(id -u isrsrv).service
