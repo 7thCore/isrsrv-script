@@ -21,7 +21,7 @@
 
 #Static script variables
 export NAME="IsRSrv" #Name of the tmux session.
-export VERSION="1.6-9" #Package and script version.
+export VERSION="1.7-1" #Package and script version.
 export SERVICE_NAME="isrsrv" #Name of the service files, user, script and script log.
 export LOG_DIR="/srv/$SERVICE_NAME/logs" #Location of the script's log files.
 export LOG_STRUCTURE="$LOG_DIR/$(date +"%Y")/$(date +"%m")/$(date +"%d")" #Folder structure of the script's log files.
@@ -153,6 +153,7 @@ script_email_message() {
 	mail -r "$EMAIL_SENDER ($1)" -s "$2" $EMAIL_RECIPIENT <<- EOF
 	$3
 	EOF
+}
 
 #--------------------------
 
@@ -198,7 +199,7 @@ script_remove_old_files() {
 		SERVER_INSTANCE=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
 		if [[ "$(systemctl --user show -p ActiveState --value $SERVER_SERVICE)" == "active" ]] && [[ "$(systemctl --user show -p UnitFileState --value $SERVER_SERVICE)" == "enabled" ]]; then
 			#Delete old game logs
-			if [[ "#SERVER_TYPE" == "$SERVICE_NAME-tmpfs" ]]; then
+			if [[ "$SERVER_TYPE" == "$SERVICE_NAME-tmpfs" ]]; then
 				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Remove old files) Removing old game logs for $SERVER_INSTANCE: $LOG_GAME_DELOLD days old." | tee -a "$LOG_SCRIPT"
 				find $TMPFS_DIR/$WINE_PREFIX_GAME_CONFIG/Logs_$SERVER_INSTANCE/* -mtime +$LOG_GAME_DELOLD -delete
 			fi
@@ -300,7 +301,7 @@ script_remove_server() {
 		SERVER_INSTANCE_LIST=("Cancel" "${SERVER_INSTANCE_LIST[@]}")
 		select SERVER_INSTANCE in "${SERVER_INSTANCE_LIST[@]}"; do
 			SERVER_INSTANCE_REMOVE=$(echo $SERVER_SERVICE | awk -F '@' '{print $2}' | awk -F '.service' '{print $1}')
-			INSTANCE_FOLDERS=(server_$SERVER_INSTANCE_REMOVE userdb_$SERVER_INSTANCE_REMOVE workshop_$SERVER_INSTANCE_REMOVE backups_$SERVER_INSTANCE_REMOVE cache_$SERVER_INSTANCE_REMOVE Logs_$SERVER_INSTANCE_REMOVE)
+			INSTANCE_FOLDERS=(server_${SERVER_INSTANCE_REMOVE} userdb_${SERVER_INSTANCE_REMOVE} workshop_${SERVER_INSTANCE_REMOVE} backups_${SERVER_INSTANCE_REMOVE} cache_${SERVER_INSTANCE_REMOVE} Logs_${SERVER_INSTANCE_REMOVE})
 			if [[ "$SERVER_INSTANCE_REMOVE" == "Cancel" ]]; then
 				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Remove server instance) User canceled removal of server instance." | tee -a "$LOG_SCRIPT"
 				break
@@ -1797,7 +1798,7 @@ script_config_discord() {
 			fi
 		echo ""
 		read -p "Discord notifications for tmpfs partition being close to full? (y/n): " INSTALL_DISCORD_TMPFS_SPACE_ENABLE
-			if [[ "$INSTALL_DISCORD_CRASH_ENABLE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+			if [[ "$INSTALL_DISCORD_TMPFS_SPACE_ENABLE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
 				INSTALL_DISCORD_TMPFS_SPACE="1"
 			else
 				INSTALL_DISCORD_TMPFS_SPACE="0"
@@ -1869,7 +1870,7 @@ script_config_email() {
 			fi
 		echo ""
 		read -p "Email notifications for tmpfs partition being close to full? (y/n): " INSTALL_EMAIL_TMPFS_SPACE_ENABLE
-			if [[ "$INSTALL_DISCORD_CRASH_ENABLE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+			if [[ "$INSTALL_EMAIL_TMPFS_SPACE_ENABLE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
 				INSTALL_EMAIL_TMPFS_SPACE="1"
 			else
 				INSTALL_EMAIL_TMPFS_SPACE="0"
@@ -1937,7 +1938,7 @@ script_config_email() {
 	echo 'email_start='"$INSTALL_EMAIL_START" >> $CONFIG_DIR/$SERVICE_NAME-email.conf
 	echo 'email_stop='"$INSTALL_EMAIL_STOP" >> $CONFIG_DIR/$SERVICE_NAME-email.conf
 	echo 'email_crash='"$INSTALL_EMAIL_CRASH" >> $CONFIG_DIR/$SERVICE_NAME-email.conf
-	echo 'email_tmpfs_space='"$INSTALL_EMAIL_CRASH" >> $CONFIG_DIR/$SERVICE_NAME-email.conf
+	echo 'email_tmpfs_space='"$INSTALL_EMAIL_TMPFS_SPACE" >> $CONFIG_DIR/$SERVICE_NAME-email.conf
 	chown $SERVICE_NAME:$SERVICE_NAME $CONFIG_DIR/$SERVICE_NAME-email.conf
 	echo "Done"
 }
