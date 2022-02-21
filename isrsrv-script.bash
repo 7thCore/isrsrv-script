@@ -21,7 +21,7 @@
 
 #Static script variables
 export NAME="IsRSrv" #Name of the tmux session.
-export VERSION="1.7-1" #Package and script version.
+export VERSION="1.7-2" #Package and script version.
 export SERVICE_NAME="isrsrv" #Name of the service files, user, script and script log.
 export LOG_DIR="/srv/$SERVICE_NAME/logs" #Location of the script's log files.
 export LOG_STRUCTURE="$LOG_DIR/$(date +"%Y")/$(date +"%m")/$(date +"%d")" #Folder structure of the script's log files.
@@ -1193,7 +1193,7 @@ script_save() {
 				else
 					echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Save) Save game to disk for server $SERVER_INSTANCE is in progress. Please wait..."
 				fi
-			done < <(tail -n1 -f /tmp/$SERVICE_NAME-$SERVICE_NAME-$SERVER_INSTANCE-tmux.log)'
+			done < <(tail -n1 -f /tmp/$SERVICE_NAME-$SERVER_INSTANCE-tmux.log)'
 			EXIT_CODE="$?"
 			if [[ "$EXIT_CODE" == "124" ]]; then
 				echo "$(date +"%Y-%m-%d %H:%M:%S") [$VERSION] [$NAME] [INFO] (Save) Save time limit for server $SERVER_INSTANCE exceeded."
