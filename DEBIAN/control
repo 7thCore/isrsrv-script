@@ -1,8 +1,8 @@
 Package: isrsrv-script
-Version: 1.7-3
+Version: 1.7-4
 Architecture: amd64
 Essential: no
 Priority: optional
-Depends: bash, coreutils, sudo, libpam-systemd, grep, sed, gawk, curl, rsync, wget, findutils, tmux, zip, unzip, p7zip, postfix, s-nail, cabextract, xvfb, steamcmd, winehq-staging
+Depends: bash, coreutils, sudo, libpam-systemd, grep, sed, gawk, curl, rsync, wget, findutils, tmux, zip, unzip, p7zip, postfix, s-nail, cabextract, xvfb, steamcmd, winehq-staging (<= 7.1)
 Maintainer: 7thCore
 Description: Interstelalr Rift server script for running the server on linux with wine compatibility layer.
