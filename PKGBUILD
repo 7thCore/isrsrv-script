@@ -16,7 +16,7 @@
 
 pkgname=isrsrv-script
 pkgver=1.7
-pkgrel=3
+pkgrel=4
 pkgdesc='Interstelalr Rift server script for running the server on linux with wine compatibility layer.'
 arch=('x86_64')
 license=('GPL3')
@@ -38,7 +38,7 @@ depends=('bash'
          's-nail'
          'cabextract'
          'xorg-server-xvfb'
-         'wine'
+         'wine<=7.1'
          'wine-mono'
          'wine_gecko'
          'winetricks'
@@ -73,7 +73,7 @@ source=('bash_profile'
         'isrsrv-timer-2.timer'
         'isrsrv-tmpfs@.service')
 sha256sums=('f1e2f643b81b27d16fe79e0563e39c597ce42621ae7c2433fd5b70f1eeab5d63'
-            '37a2207b7073eaf243e90a70556a371902eadc57e2553889186373f955d81a0e'
+            '335444d1c532a51b38ec6c20421d1e0b870004fcad027ff865461359365bd214'
             '3b5230d335033c9d55da30a4dda52b03907317bb5960fdb5c510ff38cc13a970'
             '9aa6c520c0a975cac4bc00f7988c1268d68653ac607117042f57f2a9089e5f97'
             '1e254761e4d1378a748f1f41e8af14c42a5e2ca9177b36f8f7acff23fccba5dd'
